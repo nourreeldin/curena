@@ -1,0 +1,65 @@
+# =====================================
+# Android & Kotlin MVP Project (.gitignore)
+# =====================================
+
+# IDE Files
+*.iml
+.idea/
+!.idea/codeStyles/
+!.idea/runConfigurations/
+
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Local Configuration
+local.properties
+
+# Native / NDK
+.cxx/
+.externalNativeBuild/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Capture files
+captures/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Supabase / Secrets
+config/Secrets.kt
+config/Secrets.json
+supabase_private_key.json
+
+# Logs
+*.log
+
+# Android profiling
+*.hprof
+
+# Generated files
+/out/
+*/out/
+
+# Jetpack Compose Preview cache
+/.idea/preview.xml
+
+# Kotlin build cache
+.kotlinc/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Project management folders
+phases/
+
+# =====================================
+# End of file
+# =====================================
+
