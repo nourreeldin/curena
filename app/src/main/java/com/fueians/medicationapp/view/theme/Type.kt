@@ -1,10 +1,18 @@
 package com.fueians.medicationapp.view.theme
-
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+/**
+ * Defines the typography styles used across the Medication Management System app.
+ *
+ * Notes for developers:
+ * - Typography should follow Material Design 3 guidelines.
+ * - Use the `Typography` object within `MaterialTheme` for consistent text styling.
+ * - Add custom fonts by extending `FontFamily` if needed.
+ * - Maintain readability and accessibility with adequate font size and spacing.
+ */
 
 // Set of Material typography styles to start with
 val Typography = Typography(

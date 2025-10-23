@@ -1,5 +1,4 @@
 package com.fueians.medicationapp.view.activities
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,10 +10,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.fueians.medicationapp.view.theme.MedicationManagementSystemTheme
-
+import com.fueians.medicationapp.view.theme.AppTheme
+/**
+ * MainActivity serves as the application's primary entry point for UI rendering.
+ *
+ * Notes for developers:
+ * - This activity uses Jetpack Compose to display UI content.
+ * - Wrap all screens with `AppTheme` for consistent styling.
+ * - Avoid placing business logic here; delegate it to Presenters or ViewModels.
+ * - In future implementations, navigation to AuthActivity or DashboardActivity can be handled here.
+ */
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -23,7 +29,7 @@ class MainActivity : ComponentActivity() {
         // Example: mainPresenter = MainPresenter(this)
 
         setContent {
-            MedicationManagementSystemTheme {
+            AppTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
@@ -36,7 +42,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun GreetingScreen(name: String, modifier: Modifier = Modifier) {
     Text(
@@ -44,11 +49,10 @@ fun GreetingScreen(name: String, modifier: Modifier = Modifier) {
         modifier = modifier
     )
 }
-
 @Preview(showBackground = true)
 @Composable
 fun GreetingScreenPreview() {
-    MedicationManagementSystemTheme {
+    AppTheme {
         GreetingScreen("Medication App")
     }
 }
