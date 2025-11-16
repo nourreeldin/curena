@@ -9,4 +9,10 @@ package com.fueians.medicationapp.model.entities
  */
 class UserEntity {
     // TODO: Define user fields and behaviours
+    val id: String = ""
+    val email: String = ""
+    val passwordHash: String = ""
+    var authToken: String? = null
+    val createdAt: Long = 0
+    var lastLoginAt: Long? = null
 }
