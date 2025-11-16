@@ -1,0 +1,78 @@
+############################################################
+############################################################
+############################################################
+#####  Signup Temp File  ###################################
+############################################################
+############################################################
+############################################################
+
+SignUp Btn Clicked
+
+    Steps:
+        1.Check Email.
+        2.Check Password.
+        3.check Confirm Password.
+        4.Create Account.
+        5.Change View.
+
+    Cases:
+        1.Email Wrong Syntax:
+            -Decrease number of available tries by 1. (Device Block)
+            -Don't change View.
+            -Pop up "Email Not Valid.".
+        2.Email Found:
+            -Decrease number of available tries by 1. (Device Block)
+            -Don't change View.
+            -Pop up "Email Already Exists,Login?.". // Login should redirect view to Login page
+        3.Empty Email:
+            -Don't change View.
+            -Pop up "Email Is Empty.".
+        4.Email Valid:
+            -Don't change View.
+            -Check Password.
+        5.Password Weak:
+            -Decrease number of available tries by 1. (Device Block)
+            -Don't change View.
+            -Pop up "Password Is Weak.".
+        6.Empty Password:
+            -Decrease number of available tries by 1. (Device Block)
+            -Don't change View.
+            -Pop up "Password Is Empty.".
+        7.Password Valid:
+            -Don't change View.
+            -Check Confirm Password
+        8.Empty Confirm Password:
+            -Decrease number of available tries by 1. (Device Block)
+            -Don't change View.
+            -Pop up "Confirm Password Is Empty.".
+        9.Confirm Password Not Matching Password:
+            -Decrease number of available tries by 1. (Device Block)
+            -Don't change View.
+            -Pop up "Confirm Password Is Different.".
+        10.Confirm Password Matching Password:
+            -Create Account.
+            -Change view to Login page.
+            -Pop up "Signup Successful.".
+        11.Device Blocked:
+            -Pop up "Device Blocked,Check Chat Support.". // ChatSupport should redirect view to ChatSupport page
+
+        Need To Know
+        -Criteria for Password
+
+############################################################
+
+Continue With Google Btn Clicked
+
+    null
+
+############################################################
+
+Continue With Facebook Btn CLicked
+
+    null
+
+############################################################
+
+Login Btn Clicked
+
+    -Change View to Login Page

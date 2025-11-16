@@ -1,0 +1,37 @@
+Which Theme To Use ???
+
+    import android.content.res.Configuration
+
+    fun isSystemDarkTheme(context: Context): Boolean {
+        return (context.resources.configuration.uiMode
+                and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    }
+
+    val isDark = isSystemDarkTheme(this)
+
+    val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+    val isFirstRun = prefs.getBoolean("first_run", true)
+
+    if (isFirstRun) {
+        val isDark = isSystemDarkTheme(this)
+
+        // Save the user's theme preference automatically
+        prefs.edit().putBoolean("dark_theme", isDark).apply()
+
+        // Mark first run as finished
+        prefs.edit().putBoolean("first_run", false).apply()
+    }
+
+######################################################################
+
+Should functions be static or require object creation?
+
+Option A: Static / Companion Functions
+    ✅ Easy to call: Communicator.getUser("test")
+    ❌ Harder to mock for testing
+    ❌ Harder to maintain state or dependencies
+
+Option B: Instance Functions (Recommended)
+    ✅ Easier to swap implementations (mock, fake, or real)
+    ✅ Supports dependency injection (good for testing)
+    ✅ Can maintain state if needed
