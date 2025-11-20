@@ -1,7 +1,8 @@
 package com.fueians.medicationapp.model.services
 
+// ... other imports (UserRepository, PasswordHasher, TokenManager, SupabaseClient, RxJava types)
 import com.fueians.medicationapp.model.entities.UserEntity
-import com.fueians.medicationapp.model.remote.SupabaseClient // ⚠️ NEW IMPORT
+import com.fueians.medicationapp.model.remote.SupabaseClient
 import com.fueians.medicationapp.model.repository.UserRepository
 import com.fueians.medicationapp.security.PasswordHasher
 import com.fueians.medicationapp.security.TokenManager
@@ -11,40 +12,48 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 
 class AuthService(
     private val userRepository: UserRepository,
-    private val passwordHasher: PasswordHasher, // Still needed for local-only scenarios, but less for Supabase auth
+    private val passwordHasher: PasswordHasher,
     private val tokenManager: TokenManager,
-    private val supabaseClient: SupabaseClient // ⚠️ NEW DEPENDENCY
+    private val supabaseClient: SupabaseClient
 ) {
-    // We'll primarily use the I/O scheduler for network calls.
     private val ioScheduler = Schedulers.io()
 
-    // --- Authentication and Registration ---
-
     fun registerUser(name: String, email: String, password: String): Completable {
-        // 1. Use Supabase to handle remote registration and hashing
+        // ... (Registration logic using SupabaseClient) ...
         return supabaseClient.signUp(email, password, name)
             .flatMapCompletable { remoteUser ->
-                // 2. If Supabase succeeds, save the user entity (including ID from Supabase) locally
                 userRepository.saveUser(remoteUser)
             }
-            .subscribeOn(ioScheduler) // Network work on I/O thread
+            .subscribeOn(ioScheduler)
     }
 
     fun login(email: String, password: String): Single<UserEntity> {
-        // 1. Use Supabase to handle remote authentication
         return supabaseClient.signIn(email, password)
             .flatMap { remoteUser ->
-                // 2. On success, save/update user details locally
-                userRepository.saveUser(remoteUser) // saveUser returns Completable
-                    .andThen(Single.just(remoteUser)) // Return the user after saving
+                userRepository.saveUser(remoteUser)
+                    .andThen(Single.just(remoteUser))
             }
             .doOnSuccess { user ->
-                // 3. Handle token management
-                val authToken = generateAuthToken(user) // Or retrieve token from Supabase response
+                // 1. This function call requires the definition below
+                val authToken = generateAuthToken(user)
                 tokenManager.saveAuthToken(authToken)
             }
-            .subscribeOn(ioScheduler) // Network work on I/O thread
+            .subscribeOn(ioScheduler)
     }
 
-    // ... logout and generateAuthToken methods remain the same ...
+    fun logout(): Completable {
+        return Completable.fromAction { tokenManager.clearAuthToken() }
+    }
+
+    // 🎯 FIX: Implement the required private helper function here
+    /**
+     * Generates a simple, local placeholder token based on user details.
+     * In a real app, this would involve retrieving a JWT from Supabase response
+     * or generating a secure local session identifier.
+     */
+    private fun generateAuthToken(user: UserEntity): String {
+        // We use a simple UUID or timestamp-based token for a placeholder implementation.
+        // In a real application, you would use a secure library or the actual JWT returned by Supabase.
+        return "SESSION_TOKEN_${user.id}_${System.currentTimeMillis()}"
+    }
 }

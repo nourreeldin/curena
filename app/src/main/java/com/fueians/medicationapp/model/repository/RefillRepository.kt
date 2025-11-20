@@ -1,6 +1,5 @@
 package com.fueians.medicationapp.model.repository
 
-package com.fueians.medicationapp.model.repository
 
 import com.fueians.medicationapp.model.dao.RefillDao
 import com.fueians.medicationapp.model.entities.RefillEntity
