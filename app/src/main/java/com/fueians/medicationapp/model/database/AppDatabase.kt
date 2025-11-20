@@ -1,40 +1,53 @@
 package com.fueians.medicationapp.model.database
 
-import android.content.Context
-import androidx.room.AutoMigration
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import com.fueians.medicationapp.model.dao.UserDao
-import com.fueians.medicationapp.model.entities.UserEntity
+import com.fueians.medicationapp.model.dao.*
+import com.fueians.medicationapp.model.entities.*
 import com.fueians.medicationapp.model.typeconverters.InstantConverter
+import com.fueians.medicationapp.model.typeconverters.ListStringConverter
+
+
+/**
+ * The Room Database abstract class.
+ * It links all Entities, DAOs, and Type Converters together.
+ */
 
 @Database(
-    entities = [UserEntity::class],
-    version = 1,
-    exportSchema = true
-    // autoMigrations = [AutoMigration(from = 1, to = 2)]
-)
-@TypeConverters(value = [InstantConverter::class])
-abstract class AppDatabase: RoomDatabase() {
-    // this function allows room db to access the entities
-    abstract fun userDao(): UserDao
-    // singleton pattern
-    companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
+    entities = [
+        // Core User and Medication
+        UserEntity::class,
+        MedicationEntity::class,
 
-        fun getInstance(context: Context): AppDatabase {
-            return INSTANCE?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "CurenaDB"
-                ).fallbackToDestructiveMigration(true).build() // true for now but on release we will use auto migration or make manual
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
+        // Scheduling and Adherence
+        MedicationScheduleEntity::class,
+        AdherenceLogEntity::class,
+
+        // Drug Information
+        DrugInfoEntity::class,
+        DrugInteractionEntity::class,
+
+        // Auxiliary Tracking & Relationships
+        CaregiverPatientEntity::class,
+        RefillEntity::class,
+        ReportEntity::class
+    ],
+    version = 1,
+    exportSchema = false
+)
+// Register the converter for java.time.Instant used in UserEntity
+@TypeConverters(InstantConverter::class, ListStringConverter::class)
+abstract class AppDatabase : RoomDatabase() {
+
+    // --- Access methods for all 8 DAOs ---
+
+    abstract fun userDao(): UserDao
+    abstract fun medicationDao(): MedicationDao
+    abstract fun drugInfoDao(): DrugInfoDao
+    abstract fun caregiverPatientDao(): CaregiverPatientDao
+    abstract fun adherenceLogDao(): AdherenceLogDao
+    abstract fun refillDao(): RefillDao
+    abstract fun reportDao(): ReportDao
+    abstract fun medicationScheduleDao(): MedicationScheduleDao
 }

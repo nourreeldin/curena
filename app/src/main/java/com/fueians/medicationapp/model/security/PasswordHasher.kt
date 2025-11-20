@@ -1,27 +1,26 @@
-package com.fueians.medicationapp.model.security
+package com.fueians.medicationapp.security
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 
-class PasswordHasher(
-    private val algorithm: String = "BCrypt",
-    private val saltLength: Int = 10
-) {
+/**
+ * Interface for secure password hashing and verification.
+ */
+interface PasswordHasher {
+    fun hash(password: String): String
+    fun verify(password: String, hash: String): Boolean
+}
 
-    fun hash(password: String): String {
-        return BCrypt.withDefaults().hashToString(saltLength, password.toCharArray())
+class PasswordHasherImpl : PasswordHasher {
+    // Recommended default cost for BCrypt
+    private val COST = 12
+
+    override fun hash(password: String): String {
+        return BCrypt.withDefaults().hashToString(COST, password.toCharArray())
     }
 
-    fun verify(password: String, hash: String): Boolean {
-        return try {
-            val result = BCrypt.verifyer().verify(password.toCharArray(), hash)
-            result.verified
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    fun generateSalt(): String {
-        // This library handles salt generation internally
-        return ""
+    override fun verify(password: String, hash: String): Boolean {
+        // BCrypt handles the salts internally within the hash string.
+        val result = BCrypt.verifyer().verify(password.toCharArray(), hash.toCharArray())
+        return result.verified
     }
 }

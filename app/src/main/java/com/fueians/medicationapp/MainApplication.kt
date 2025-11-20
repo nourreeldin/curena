@@ -1,6 +1,10 @@
 package com.fueians.medicationapp
 import android.app.Application
 import android.util.Log
+import com.fueians.medicationapp.di.appModules
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.GlobalContext.startKoin
+
 /**
  * MainApplication serves as the base Application class for the application.
  *
@@ -10,12 +14,14 @@ import android.util.Log
  * - Avoid performing heavy operations in onCreate() to prevent startup lag.
  * - Use this class to track app-level lifecycle events or analytics.
  */
-class MainApplication : Application() {
+// MedicationApplication.kt
+class MedicationApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Application started")
-    }
-    companion object {
-        private const val TAG = "MedicationApp"
+        startKoin {
+            // ... the setup you referenced
+            androidContext(this@MedicationApplication) // 'this' refers to MedicationApplication
+            modules(appModules)
+        }
     }
 }
