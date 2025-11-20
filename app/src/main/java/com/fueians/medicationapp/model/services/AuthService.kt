@@ -57,7 +57,6 @@ class AuthService(
         val newUser = UserEntity(
             id = generateUserId(),
             email = email,
-
         )
 
         // Save user to database with hashed password

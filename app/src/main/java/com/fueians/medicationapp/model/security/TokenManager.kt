@@ -102,8 +102,6 @@ class TokenManager(
         sharedPreferences.edit().clear().apply()
     }
 
-
-
     fun hasValidToken(): Boolean {
         val token = sharedPreferences.getString(KEY_TOKEN, null)
         return token != null && validateToken(token)
@@ -111,8 +109,8 @@ class TokenManager(
 
     fun saveUserInfo(user: UserEntity) {
         sharedPreferences.edit().apply {
-            putString(KEY_USER_ID, user.id)
-            putString(KEY_USER_EMAIL, user.email)
+            putString(KEY_USER_ID, user.getID())
+            putString(KEY_USER_EMAIL, user.getEmail())
 
             apply()
         }

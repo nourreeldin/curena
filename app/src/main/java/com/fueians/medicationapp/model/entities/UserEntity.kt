@@ -1,4 +1,14 @@
 package com.fueians.medicationapp.model.entities
+
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.Ignore
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import java.time.Instant
+import java.util.Date
+import java.util.UUID
+
 /**
  * UserEntity represents the structure of a user record within the application.
  *
@@ -7,12 +17,35 @@ package com.fueians.medicationapp.model.entities
  * - Do not store plain-text passwords — use hashed or encrypted values.
  * - This class will use ORM (Room) annotations to map fields to database columns.
  */
-class UserEntity {
-    // TODO: Define user fields and behaviours
-    val id: String = ""
-    val email: String = ""
-    val passwordHash: String = ""
-    var authToken: String? = null
-    val createdAt: Long = 0
-    var lastLoginAt: Long? = null
+
+@Entity(
+    tableName = "users",
+    indices = [Index(value = ["email"], unique = true)]
+)
+data class UserEntity (
+    @PrimaryKey
+    @ColumnInfo(name = "id")
+    private val id: String = UUID.randomUUID().toString(),
+
+    @ColumnInfo(name = "name")
+    private var name: String = "",
+
+    @ColumnInfo(name = "email")
+    private var email: String = "",
+
+    @ColumnInfo(name = "hashed_password")
+    private var passwordHash: String = "",
+
+    @ColumnInfo(name = "creation_time")
+    private val creationTime: Instant = Instant.now(),
+
+    @ColumnInfo("last_login")
+    private var lastLogin: Instant? = null,
+) {
+    fun getID(): String {
+        return id
+    }
+    fun getEmail(): String {
+        return email
+    }
 }
