@@ -1,51 +1,80 @@
 package com.fueians.medicationapp.model.entities
-
-import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.Ignore
-import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.time.Instant
-import java.util.Date
-import java.util.UUID
+import androidx.room.ColumnInfo
 
 /**
- * UserEntity represents the structure of a user record within the application.
+ * UserEntity
  *
- * Notes for developers:
- * - Follow consistent naming conventions that match the Supabase schema.
- * - Do not store plain-text passwords — use hashed or encrypted values.
- * - This class will use ORM (Room) annotations to map fields to database columns.
+ * Responsibility: Represent user data in the database.
+ *
+ * This entity stores core user information including authentication details,
+ * profile data, and timestamps. It serves as the foundation for the user
+ * management system in the medication management application.
  */
-
-@Entity(
-    tableName = "users",
-    indices = [Index(value = ["email"], unique = true)]
-)
-data class UserEntity (
+@Entity(tableName = "users")
+data class UserEntity(
+    /**
+     * User ID - Primary key
+     * Unique identifier for the user (typically from Supabase Auth)
+     */
     @PrimaryKey
     @ColumnInfo(name = "id")
-    private val id: String = UUID.randomUUID().toString(),
+    val id: String,
 
+    /**
+     * User name
+     * Display name of the user
+     */
     @ColumnInfo(name = "name")
-    private var name: String = "",
+    val name: String,
 
+    /**
+     * Email address
+     * User's email used for authentication and communication
+     */
     @ColumnInfo(name = "email")
-    private var email: String = "",
+    val email: String,
 
-    @ColumnInfo(name = "hashed_password")
-    private var passwordHash: String = "",
+    /**
+     * Hashed password
+     * Securely hashed password (encrypted by EncryptionService)
+     */
+    @ColumnInfo(name = "password_hash")
+    val passwordHash: String,
 
-    @ColumnInfo(name = "creation_time")
-    private val creationTime: Instant = Instant.now(),
+    /**
+     * Phone number (optional)
+     * User's contact phone number
+     */
+    @ColumnInfo(name = "phone")
+    val phone: String? = null,
 
-    @ColumnInfo("last_login")
-    private var lastLogin: Instant? = null,
-) {
-    fun getID(): String {
-        return id
-    }
-    fun getEmail(): String {
-        return email
-    }
-}
+    /**
+     * Profile photo URL (optional)
+     * URL to the user's profile photo (may be stored in Supabase Storage)
+     */
+    @ColumnInfo(name = "profile_photo_url")
+    val profilePhotoUrl: String? = null,
+
+    /**
+     * Email verification status
+     * Indicates whether the user has verified their email address
+     */
+    @ColumnInfo(name = "is_email_verified")
+    val isEmailVerified: Boolean = false,
+
+    /**
+     * Account creation timestamp
+     * Unix timestamp (milliseconds) when the account was created
+     */
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long = System.currentTimeMillis(),
+
+    /**
+     * Last update timestamp
+     * Unix timestamp (milliseconds) of the last profile update
+     */
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: Long = System.currentTimeMillis()
+)
