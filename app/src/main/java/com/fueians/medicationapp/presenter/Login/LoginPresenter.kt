@@ -1,83 +1,86 @@
-
 package com.fueians.medicationapp.presenter.Login
 
-import com.fueians.medicationapp.model.services.AuthResponse
+import com.fueians.medicationapp.model.entities.UserEntity
+import com.fueians.medicationapp.presenter.TestRepo.UserRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
+// =========================================================================
+// 1. Result Sealed Class
+// =========================================================================
 
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-class LoginView {
-    fun showEmailEmpty() {}
-    fun showNotValidEmail() {}
-    fun showEmptyPassword() {}
-    fun LoginFailed() {}
-    fun emailNotExist() {}
-    fun Success(Information: List<String>) {}
+sealed class Result<out T> {
+    data class Success<out T>(val data: T) : Result<T>()
+    data class Failure(val exception: Exception) : Result<Nothing>()
 }
 
-class AuthRepository {
-    fun login(email: String, password: String): List<String> {
-        val errors = mutableListOf<String>()
-        return errors
-    }
+// =========================================================================
+// 2. View Interface
+// =========================================================================
 
-    fun emailExist(email : String): Boolean{
-        return true
-    }
+interface LoginView {
+    fun showLoginError(message: String)
+    fun showLoading()
+    fun hideLoading()
+    // FIX: Changed signature to accept the UserEntity object for a more robust and type-safe approach.
+    fun onLoginSuccess(user: UserEntity)
 }
 
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
 
-class LoginPresenter (private val View : LoginView) {
-    private val Communicator = AuthRepository()
+// =========================================================================
+// 3. Presenter
+// =========================================================================
 
-    fun Login(email: String, password: String) {
-        // Step 1
-// Step 1
-        if (email.isEmpty()){
-            View.showEmailEmpty() // email is empty
+class LoginPresenter(private var view: LoginView?) {
+
+    // In a real app, this should be injected. For now, we mirror the original pattern.
+    private val userRepository: UserRepository = UserRepository()
+
+    // Use a lifecycle-aware scope (Main dispatcher with SupervisorJob) for proper cancellation.
+    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    fun login(email: String, password: String) {
+        // --- Synchronous UI Validations ---
+        if (email.isBlank()) {
+            view?.showLoginError("Email is required")
+            return
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            view?.showLoginError("Invalid email format")
+            return
+        }
+        if (password.isBlank()) {
+            view?.showLoginError("Password is required")
+            return
         }
 
-        if (!checkEmailSyntax(email)){
-            View.showNotValidEmail() // email not written correctly
-        }
+        view?.showLoading()
 
-        if(!checkEmail(email)){
-            View.emailNotExist() // email doesnt exist in Database , signup ?
-        }
+        presenterScope.launch {
+            val result = userRepository.login(email, password)
 
-        //Step 2
-        if (password.isEmpty()){
-            View.showEmptyPassword() // password is empty
-        }
+            view?.hideLoading()
 
-        // Step 3
-        val Information = Communicator.login(email,password)
-        if(Information == null ){
-            View.LoginFailed() // Incorrect Password since email already exists.
+            when (result) {
+                is Result.Success -> {
+                    // FIX: Call the corrected success function with the user object.
+                    view?.onLoginSuccess(result.data)
+                }
+                is Result.Failure -> {
+                    view?.showLoginError(
+                        result.exception.message ?: "Login failed"
+                    )
+                }
+            }
         }
-        else{
-            View.Success(Information) // return either userentity or its information
-        }
-
-
     }
 
-    private fun checkEmail(email: String): Boolean {
-        return (Communicator.emailExist(email))
+    // Call this when the view (e.g., Fragment/Activity) is destroyed to prevent memory leaks.
+    fun detachView() {
+        view = null
+        presenterScope.cancel()
     }
-    private fun checkEmailSyntax(email: String) : Boolean {
-        val emailRegex = Regex(
-            "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$",
-            RegexOption.IGNORE_CASE
-        )
-        return emailRegex.matches(email)
-    }
-
 }
-

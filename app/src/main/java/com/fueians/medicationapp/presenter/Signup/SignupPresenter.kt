@@ -1,98 +1,87 @@
-
 package com.fueians.medicationapp.presenter.Signup
 
+import com.fueians.medicationapp.model.entities.UserEntity
+import com.fueians.medicationapp.presenter.TestRepo.UserRepository
+import com.fueians.medicationapp.presenter.Login.Result
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-class SignupView {
-    fun showEmailEmpty() {}
-    fun showNotValidEmail() {}
-    fun showEmptyPassword() {}
-    fun weakPassword() {}
-    fun showConfirmPasswordEmpty() {}
-    fun confirmPasswrdNotPassword() {}
-    fun systemError() {}
-    fun emailUsed() {}
-    fun Success(Information: List<String>) {}
+// =========================================================================
+// 1. View Interface
+// =========================================================================
+
+interface SignupView {
+    fun showSignupError(message: String)
+    fun showLoading()
+    fun hideLoading()
+    fun onSignupSuccess(user: UserEntity)
 }
 
-class AuthRepository {
-    fun CreateAccount(name: String, email: String, password: String, confirmPassword: String): List<String> {
-        val errors = mutableListOf<String>()
-        return errors
+// =========================================================================
+// 2. Presenter
+// =========================================================================
+
+class SignupPresenter(private var view: SignupView?) {
+
+    // In a real app, this should be injected.
+    private val userRepository: UserRepository = UserRepository()
+
+    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    fun signup(name: String, email: String, password: String, confirmPassword: String) {
+        // --- Synchronous UI Validations ---
+        if (name.isBlank()) {
+            view?.showSignupError("Full name is required")
+            return
+        }
+        if (email.isBlank()) {
+            view?.showSignupError("Email is required")
+            return
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            view?.showSignupError("Invalid email format")
+            return
+        }
+        if (password.isBlank()) {
+            view?.showSignupError("Password is required")
+            return
+        }
+        if (!isStrongPassword(password)) {
+            view?.showSignupError("Password is too weak. It must be 8+ characters and include uppercase, lowercase, a digit, and a special character.")
+            return
+        }
+        if (password != confirmPassword) {
+            view?.showSignupError("Passwords do not match")
+            return
+        }
+
+        view?.showLoading()
+
+        presenterScope.launch {
+            val result = userRepository.createAccount(name, email, password)
+
+            view?.hideLoading()
+
+            when (result) {
+                is Result.Success -> {
+                    view?.onSignupSuccess(result.data)
+                }
+                is Result.Failure -> {
+                    view?.showSignupError(
+                        result.exception.message ?: "Signup failed due to an unknown error."
+                    )
+                }
+            }
+        }
     }
 
-    fun emailExist(email : String): Boolean{
-        return true
-    }
-}
-
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-// DELETE AFTER FINISHING
-
-
-class SignupPresenter(private val View : SignupView){
-    private val Communicator = AuthRepository()
-
-    fun Signup(name: String, email: String, password: String, confirmPassword: String) {
-        // Step 1
-        if (email.isEmpty()){
-            View.showEmailEmpty() // email is empty
-        }
-
-        if (!checkEmailSyntax(email)){
-            View.showNotValidEmail() // email not written correctly
-        }
-
-        if(!checkEmail(email)){
-            View.emailUsed() // email already exists in database
-        }
-
-        //Step 2
-        if (password.isEmpty()){
-            View.showEmptyPassword() // password is empty
-        }
-
-        if (!isStrongPassword(password)){
-            View.weakPassword() // password criteria not met
-        }
-
-        if (confirmPassword.isEmpty()){
-            View.showConfirmPasswordEmpty() // confirm password is empty
-        }
-
-        if (!onConfirmPasswordMatch(confirmPassword,password)){
-            View.confirmPasswrdNotPassword() // confirm password is not like main password
-        }
-
-        val Information = Communicator.CreateAccount(name,email,password,confirmPassword)
-        if(Information == null ){
-            View.systemError() // cant signup ( system error )
-        }
-        else{
-            View.Success(Information) // successful signup , give view userentity or its information
-        }
-
-    }
-
-    private fun checkEmail(email: String): Boolean {
-        return (Communicator.emailExist(email))
-    }
-
-    private fun checkEmailSyntax(email: String) : Boolean {
-        val emailRegex = Regex(
-            "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$",
-            RegexOption.IGNORE_CASE
-        )
-        return emailRegex.matches(email)
-    }
-
+    /**
+     * Checks if a password meets the required complexity criteria.
+     */
     private fun isStrongPassword(password: String): Boolean {
-
         if (password.length < 8)
             return false
 
@@ -111,10 +100,9 @@ class SignupPresenter(private val View : SignupView){
         return true
     }
 
-    private fun onConfirmPasswordMatch(confirmPassword: String, password: String): Boolean {
-        return confirmPassword == password
+    // Call this when the view (e.g., Fragment/Activity) is destroyed to prevent memory leaks.
+    fun detachView() {
+        view = null
+        presenterScope.cancel()
     }
-
 }
-
-
