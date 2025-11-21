@@ -3,116 +3,74 @@ package com.fueians.medicationapp.presenter.Login
 
 import com.fueians.medicationapp.model.services.AuthResponse
 
-// ############################################################
-// ######################### Temporary ########################
-// ####### UserRepository (Model not committed yet) ###########
-// ####### LoginView (View not implemented yet) ###############
-// ############################################################
 
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
 class LoginView {
-    fun showPopup(message: String) {}
-    fun changeView(screen: String) {}
+    fun showEmailEmpty() {}
+    fun showNotValidEmail() {}
+    fun showEmptyPassword() {}
+    fun LoginFailed() {}
+    fun emailNotExist() {}
+    fun Success(Information: List<String>) {}
 }
 
 class AuthRepository {
-    suspend fun login(email: String, password: String): AuthResponse? {
-        return null
+    fun login(email: String, password: String): List<String> {
+        val errors = mutableListOf<String>()
+        return errors
     }
 
-    fun addUser(name: String, email: String, password: String){}
+    fun emailExist(email : String): Boolean{
+        return true
+    }
 }
 
-data class UserEntity(val name: String, val email: String)
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
 
-// ############################################################
-// ############################################################
-// ############################################################
-
-interface LoginContract {
-
-    // Entry Point
-    fun Login(email: String, password: String) {}
-    fun signupBtn() {}
-    fun loginWithGoogle(idToken: String) {}
-    fun loginWithFacebook(accessToken: String) {}
-
-//    // Steps
-//    private fun checkEmail(email: String) {}
-//    private fun checkPassword(email: String, password: String) {}
-//    private fun changeViewToDashboard() {}
-//
-//    // Cases
-//    private fun onEmailEmpty() {}
-//    private fun checkEmailSyntax(email: String):Boolean {}
-//    private fun onEmailWrongSyntax() {}
-//    private fun onEmailNotFound() {}
-//    private fun onPasswordWrong() {}
-//    private fun onPasswordEmpty() {}
-//    private fun onContinueWithGoogle() {}
-//    private fun onContinueWithFacebook() {}
-//    private fun onAccountLocked() {}
-//    private fun onDeviceBlocked() {}
-//
-//    // ===================================================
-//    // ===============  Not Agreed Upon  =================
-//    // ===================================================
-//    private fun popup(message: String) {}
-//    private fun changeView(screen: String) {}
-//    // ===================================================
-
-}
-
-class LoginPresenter : LoginContract {
+class LoginPresenter (private val View : LoginView) {
     private val Communicator = AuthRepository()
-    private val View = LoginView()
 
-    override fun Login(email: String, password: String) {
+    fun Login(email: String, password: String) {
         // Step 1
+// Step 1
         if (email.isEmpty()){
-            onEmailEmpty()
-            return
+            View.showEmailEmpty() // email is empty
         }
 
-        if (!checkEmailSyntax(email)) {
-            onEmailWrongSyntax()
-            return
+        if (!checkEmailSyntax(email)){
+            View.showNotValidEmail() // email not written correctly
         }
 
-        //        checkEmail(email);
+        if(!checkEmail(email)){
+            View.emailNotExist() // email doesnt exist in Database , signup ?
+        }
 
-        // Step 2
+        //Step 2
         if (password.isEmpty()){
-            onPasswordEmpty()
-            return
-        }
-
-        if (!checkPassword(email,password)){
-            onPasswordWrong()
-            return
+            View.showEmptyPassword() // password is empty
         }
 
         // Step 3
-        onPasswordCorrect(email,password)
+        val Information = Communicator.login(email,password)
+        if(Information == null ){
+            View.LoginFailed() // Incorrect Password since email already exists.
+        }
+        else{
+            View.Success(Information) // return either userentity or its information
+        }
 
 
     }
 
-    // ============================================================
-    // =============== Not Implemented In Repo ====================
-    //    private fun checkEmail(email: String) {
-    //
-    //    }
-    //    private fun onEmailNotFound() {
-    //
-    //    }
-    // =============== Not Implemented In Repo ====================
-    // ============================================================
-
-    override fun signupBtn() {
-        changeView("null");
+    private fun checkEmail(email: String): Boolean {
+        return (Communicator.emailExist(email))
     }
-
-
     private fun checkEmailSyntax(email: String) : Boolean {
         val emailRegex = Regex(
             "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$",
@@ -120,84 +78,6 @@ class LoginPresenter : LoginContract {
         )
         return emailRegex.matches(email)
     }
-    private fun checkPassword(email: String, password: String) : Boolean {
-//        Communicator.login(email,password) // should I use suspend ????
-    return true
-    }
-
-    // Cases
-    private fun onEmailWrongSyntax() {
-        popup("null")
-    }
-    private fun onEmailEmpty() {
-        popup("null")
-    }
-
-    // =====================================================
-    // =============== No Longer Needed ====================
-    //    private fun onEmailCorrect() {
-    //
-    //    }
-    // =============== No Longer Needed ====================
-    // =====================================================
-
-
-    private fun onPasswordWrong() {
-        popup("null")
-    }
-    private fun onPasswordEmpty() {
-        popup("null")
-    }
-    private fun onPasswordCorrect(email: String,password: String) {
-        changeView("null")
-    }
-
-
-
-    // ===================================================
-    // ===============  Not Agreed Upon  =================
-
-    private fun onAccountLocked() {}
-    private fun onDeviceBlocked() {}
-
-    private fun popup(message: String) {
-
-    }
-    private fun changeView(screen: String) {
-
-    }
-
-
-    // ===============  Not Agreed Upon  =================
-    // ===================================================
-
-
-
-    // ===================================================
-    // ================== Not Implemented Yet ============
-
-    override fun loginWithFacebook(accessToken: String) {
-        onContinueWithFacebook()
-    }
-
-    override fun loginWithGoogle(idToken: String) {
-        onContinueWithGoogle()
-    }
-
-    private fun onContinueWithGoogle() {
-
-    }
-
-    private fun onContinueWithFacebook() {
-
-    }
-
-    // ================== Not Implemented Yet ============
-    // ===================================================
-
 
 }
 
-private class test{
-    val test = LoginPresenter();
-}

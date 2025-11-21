@@ -1,133 +1,87 @@
 
 package com.fueians.medicationapp.presenter.Signup
 
-import com.fueians.medicationapp.model.services.AuthResponse
-import com.fueians.medicationapp.presenter.Login.AuthRepository
 
-// ############################################################
-// ######################### Temporary ########################
-// ####### UserRepository (Waiting For Confirmation) ##########
-// ####### LoginView (View not implemented yet) ###############
-// ############################################################
-
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
 class SignupView {
-    fun showPopup(message: String) {}
-    fun changeView(screen: String) {}
+    fun showEmailEmpty() {}
+    fun showNotValidEmail() {}
+    fun showEmptyPassword() {}
+    fun weakPassword() {}
+    fun showConfirmPasswordEmpty() {}
+    fun confirmPasswrdNotPassword() {}
+    fun systemError() {}
+    fun emailUsed() {}
+    fun Success(Information: List<String>) {}
 }
 
 class AuthRepository {
-    suspend fun signup(email: String, password: String): AuthResponse? {
-        return null
+    fun CreateAccount(name: String, email: String, password: String, confirmPassword: String): List<String> {
+        val errors = mutableListOf<String>()
+        return errors
     }
 
-    fun addUser(name: String, email: String, password: String){}
+    fun emailExist(email : String): Boolean{
+        return true
+    }
 }
 
-data class UserEntity(val name: String, val email: String)
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
+// DELETE AFTER FINISHING
 
-// ############################################################
-// ############################################################
-// ############################################################
 
-interface SignupContract {
-
-    // Entry Point
-    fun Signup(name: String, email: String, password: String, confirmPassword: String) {}
-    fun onLoginBtnClicked() {}
-    fun signupWithGoogle(idToken: String) {}
-    fun signupWithFacebook(accessToken: String) {}
-
-//    // Steps
-//    private fun checkEmail(email: String) {}
-//    private fun isStrongPassword(password: String) {}
-//    private fun checkConfirmPassword(password: String, confirmPassword: String) {}
-//    private fun createAccount(name: String, email: String, password: String) {}
-//
-//    // Cases
-//    private fun changeViewToLogin() {}
-//    private fun signup(name: String, email: String, password: String, confirmPassword: String) {}
-//    private fun signupWithGoogle(idToken: String) {}
-//    private fun signupWithFacebook(accessToken: String) {}
-//
-//    // Cases
-//    private fun onEmailEmpty() {}
-//    private fun onEmailWrongSyntax() {}
-//    private fun onEmailAlreadyExists() {}
-//    private fun onPasswordEmpty() {}
-//    private fun onPasswordWeak() {}
-//    private fun onConfirmPasswordEmpty() {}
-//    private fun onConfirmPasswordMismatch() {}
-//    private fun onContinueWithGoogle() {}
-//    private fun onContinueWithFacebook() {}
-//    private fun onDeviceBlocked() {}
-//
-//    // ===================================================
-//    // ================= Helpers =========================
-//    // ===================================================
-//    private fun popup(message: String) {}
-//    private fun changeView(screen: String) {}
-//    // ===================================================
-
-}
-
-class SignupPresenter : SignupContract{
+class SignupPresenter(private val View : SignupView){
     private val Communicator = AuthRepository()
-    private val View = SignupView()
 
-    override fun Signup(name: String, email: String, password: String, confirmPassword: String) {
+    fun Signup(name: String, email: String, password: String, confirmPassword: String) {
         // Step 1
         if (email.isEmpty()){
-            onEmailEmpty()
-            return
+            View.showEmailEmpty() // email is empty
         }
 
         if (!checkEmailSyntax(email)){
-            onEmailWrongSyntax()
-            return
+            View.showNotValidEmail() // email not written correctly
         }
 
-        //        checkEmail(email)
+        if(!checkEmail(email)){
+            View.emailUsed() // email already exists in database
+        }
 
         //Step 2
         if (password.isEmpty()){
-            onPasswordEmpty()
-            return
+            View.showEmptyPassword() // password is empty
         }
 
         if (!isStrongPassword(password)){
-            onPasswordWeak()
-            return
+            View.weakPassword() // password criteria not met
         }
 
         if (confirmPassword.isEmpty()){
-            onConfirmPasswordEmpty()
-            return
+            View.showConfirmPasswordEmpty() // confirm password is empty
         }
 
         if (!onConfirmPasswordMatch(confirmPassword,password)){
-            onConfirmPasswordMismatch()
-            return
+            View.confirmPasswrdNotPassword() // confirm password is not like main password
         }
 
-        createAccount(email,password)
+        val Information = Communicator.CreateAccount(name,email,password,confirmPassword)
+        if(Information == null ){
+            View.systemError() // cant signup ( system error )
+        }
+        else{
+            View.Success(Information) // successful signup , give view userentity or its information
+        }
 
     }
 
-    // ============================================================
-    // =============== Not Implemented In Repo ====================
-    //    private fun checkEmail(email: String) {
-    //
-    //    }
-    //    private fun onEmailNotFound() {
-    //
-    //    }
-    // =============== Not Implemented In Repo ====================
-    // ============================================================
-
-    override fun onLoginBtnClicked() {
-        changeView("null")
+    private fun checkEmail(email: String): Boolean {
+        return (Communicator.emailExist(email))
     }
-
 
     private fun checkEmailSyntax(email: String) : Boolean {
         val emailRegex = Regex(
@@ -137,7 +91,7 @@ class SignupPresenter : SignupContract{
         return emailRegex.matches(email)
     }
 
-    fun isStrongPassword(password: String): Boolean {
+    private fun isStrongPassword(password: String): Boolean {
 
         if (password.length < 8)
             return false
@@ -160,95 +114,6 @@ class SignupPresenter : SignupContract{
     private fun onConfirmPasswordMatch(confirmPassword: String, password: String): Boolean {
         return confirmPassword == password
     }
-
-    private fun createAccount(name: String, email: String, password: String) {
-
-    }
-    private fun createAccount( email: String, password: String) {
-
-    }
-
-    private fun signup(name: String, email: String, password: String, confirmPassword: String) {
-
-    }
-
-    private fun checkEmail(email: String) {
-
-    }
-
-    private fun checkConfirmPassword(password: String, confirmPassword: String) {
-
-    }
-    private fun changeViewToLogin() {
-
-    }
-
-    // ===================================================
-    // ================= Cases ==========================
-    // ===================================================
-    private fun onEmailEmpty() {
-
-    }
-    private fun onEmailWrongSyntax() {
-
-    }
-    private fun onEmailAlreadyExists() {
-
-    }
-    private fun onEmailValid() {
-
-    }
-
-    private fun onPasswordEmpty() {
-
-    }
-    private fun onPasswordWeak() {
-
-    }
-    private fun onPasswordValid() {
-
-    }
-
-    private fun onConfirmPasswordEmpty() {
-
-    }
-    private fun onConfirmPasswordMismatch() {
-
-    }
-
-    private fun onDeviceBlocked() {
-
-    }
-
-    // ===================================================
-    // ================= Helpers ========================
-    // ===================================================
-    private fun popup(message: String) {}
-    private fun changeView(screen: String) {}
-
-
-
-    // ===================================================
-    // ================== Not Implemented Yet ============
-
-    override fun signupWithFacebook(accessToken: String) {
-        onContinueWithFacebook()
-    }
-
-    override fun signupWithGoogle(idToken: String) {
-        onContinueWithGoogle()
-    }
-
-    private fun onContinueWithGoogle() {
-
-    }
-
-    private fun onContinueWithFacebook() {
-
-    }
-
-    // ================== Not Implemented Yet ============
-    // ===================================================
 
 }
 
