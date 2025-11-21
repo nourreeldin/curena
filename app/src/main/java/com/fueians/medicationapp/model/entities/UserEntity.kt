@@ -25,27 +25,21 @@ import java.util.UUID
 data class UserEntity (
     @PrimaryKey
     @ColumnInfo(name = "id")
-    private val id: String = UUID.randomUUID().toString(),
+    val id: String = UUID.randomUUID().toString(),
 
     @ColumnInfo(name = "name")
-    private var name: String = "",
+    var name: String = "",
 
     @ColumnInfo(name = "email")
-    private var email: String = "",
+    var email: String = "",
 
     @ColumnInfo(name = "hashed_password")
-    private var passwordHash: String = "",
+    var passwordHash: String = "",
 
     @ColumnInfo(name = "creation_time")
-    private val creationTime: Instant = Instant.now(),
+    val creationTime: Instant = Instant.now(),
 
     @ColumnInfo("last_login")
-    private var lastLogin: Instant? = null,
+    var lastLogin: Instant? = null,
 ) {
-    fun getID(): String {
-        return id
-    }
-    fun getEmail(): String {
-        return email
-    }
 }

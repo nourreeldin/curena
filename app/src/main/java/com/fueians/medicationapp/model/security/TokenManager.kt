@@ -109,8 +109,8 @@ class TokenManager(
 
     fun saveUserInfo(user: UserEntity) {
         sharedPreferences.edit().apply {
-            putString(KEY_USER_ID, user.getID())
-            putString(KEY_USER_EMAIL, user.getEmail())
+            putString(KEY_USER_ID, user.id)
+            putString(KEY_USER_EMAIL, user.email)
 
             apply()
         }

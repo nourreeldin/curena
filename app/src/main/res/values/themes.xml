@@ -2,4 +2,10 @@
 <resources>
 
     <style name="Theme.MedicationManagementSystem" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/blue_primary</item>
+        <item name="postSplashScreenTheme">@style/Theme.MedicationManagementSystem</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/animated_logo</item>
+    </style>
+
 </resources>

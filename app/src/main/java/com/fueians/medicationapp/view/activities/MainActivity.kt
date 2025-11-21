@@ -1,15 +1,12 @@
 package com.fueians.medicationapp.view.activities
+import SplashPresenter
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.fueians.medicationapp.view.interfaces.ISplashView
+import com.fueians.medicationapp.view.screens.WelcomeScreen
 import com.fueians.medicationapp.view.theme.AppTheme
 /**
  * MainActivity serves as the application's primary entry point for UI rendering.
@@ -20,39 +17,36 @@ import com.fueians.medicationapp.view.theme.AppTheme
  * - Avoid placing business logic here; delegate it to Presenters or ViewModels.
  * - In future implementations, navigation to AuthActivity or DashboardActivity can be handled here.
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), ISplashView {
+    private lateinit var presenter: SplashPresenter
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
-        // TODO: In future — attach Presenter here if following MVP
-        // Example: mainPresenter = MainPresenter(this)
-
+        val splashscreen = installSplashScreen()
+        presenter = SplashPresenter(this)
         setContent {
             AppTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
-                    GreetingScreen(
-                        name = "Medication App",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                WelcomeScreen(
+                    onSignupClick = {
+                        startActivity(Intent(this, SignupActivity::class.java))
+                        finish()
+                    },
+                    onLoginClick = {
+                        startActivity(Intent(this, LoginActivity::class.java))
+                        finish()
+                    }
+                )
             }
         }
     }
-}
-@Composable
-fun GreetingScreen(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Welcome to $name!",
-        modifier = modifier
-    )
-}
-@Preview(showBackground = true)
-@Composable
-fun GreetingScreenPreview() {
-    AppTheme {
-        GreetingScreen("Medication App")
+
+    private var keepSplash = true
+
+    override fun showMainScreen() {
+        keepSplash = false
+    }
+
+    override fun onDestroy() {
+        presenter.onDestroy()
+        super.onDestroy()
     }
 }

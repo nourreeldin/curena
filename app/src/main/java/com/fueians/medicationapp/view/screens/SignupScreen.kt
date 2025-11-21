@@ -2,12 +2,8 @@ package com.fueians.medicationapp.view.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,20 +17,19 @@ import androidx.compose.ui.unit.sp
 import com.fueians.medicationapp.R
 
 @Composable
-fun LoginScreen(
+fun SignupScreen(
+    nameState: String,
+    onNameChange: (String) -> Unit,
     emailState: String,
     onEmailChange: (String) -> Unit,
     passwordState: String,
     onPasswordChange: (String) -> Unit,
-    isLoading: Boolean,
-    errorMessage: String?,
-    onLoginClick: () -> Unit,
-    onNavigateToSignup: () -> Unit,
-    onForgotPassword: () -> Unit,
-    onGoogleLoginClick: () -> Unit = {},
-    onFacebookLoginClick: () -> Unit = {}
+    confirmPasswordState: String,
+    onConfirmPasswordChange: (String) -> Unit,
+    onRegisterClick: () -> Unit,
+    onGoogleClick: () -> Unit = {},
+    onFacebookClick: () -> Unit = {}
 ) {
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -44,39 +39,61 @@ fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(200.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp)
-                )
-                .padding(start = 24.dp, bottom = 40.dp),
-            contentAlignment = Alignment.BottomStart
+                    MaterialTheme.colorScheme.primary,
+                    RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+                ),
+            contentAlignment = Alignment.CenterStart
         ) {
-            Column {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    "Welcome Back",
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    text = "Create Account",
                     fontSize = 26.sp,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    "Sign in to continue",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "Sign up to get started",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(30.dp))
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(24.dp)
         ) {
+
+            Spacer(Modifier.height(20.dp))
+
+            // Full Name
+            Text(
+                "Full Name",
+                style = MaterialTheme.typography.bodyMedium ,
+                color = MaterialTheme.colorScheme.onBackground
+
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = nameState,
+                onValueChange = onNameChange,
+                placeholder = { Text("Enter your full name") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                )
+            )
+
+            Spacer(Modifier.height(12.dp))
 
             // Email
             Text(
@@ -85,30 +102,21 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onBackground
 
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
+            Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = emailState,
                 onValueChange = onEmailChange,
                 placeholder = { Text("Enter your email") },
-                leadingIcon = {
-                    Icon(Icons.Default.Email, contentDescription = null)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                    focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             // Password
             Text(
@@ -117,57 +125,50 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onBackground
 
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
+            Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = passwordState,
                 onValueChange = onPasswordChange,
-                placeholder = { Text("Enter your password") },
                 visualTransformation = PasswordVisualTransformation(),
-                leadingIcon = {
-                    Icon(Icons.Default.Lock, contentDescription = null)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                placeholder = { Text("Enter your password") },
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                    focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Box(modifier = Modifier.height(20.dp)) {
-                if (errorMessage != null) {
-                    Text(
-                        text = errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-
-            // Forgot password
+            // Confirm Password
             Text(
-                text = "Forgot Password?",
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clickable { onForgotPassword() },
-                style = MaterialTheme.typography.bodySmall
+                "Confirm Password",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground
+
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = confirmPasswordState,
+                onValueChange = onConfirmPasswordChange,
+                visualTransformation = PasswordVisualTransformation(),
+                placeholder = { Text("Confirm your password") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(Modifier.height(30.dp))
 
-            // Login Button
+            // Register Button
             Button(
-                onClick = onLoginClick,
+                onClick = onRegisterClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(55.dp),
@@ -177,18 +178,10 @@ fun LoginScreen(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Sign In", fontSize = 16.sp)
-                }
+                Text("Create Account", fontSize = 16.sp)
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(Modifier.height(18.dp))
 
 
             Row(
@@ -213,7 +206,7 @@ fun LoginScreen(
 
                 // Google button
                 OutlinedButton(
-                    onClick = onGoogleLoginClick,
+                    onClick = onGoogleClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -240,7 +233,7 @@ fun LoginScreen(
 
                 // Facebook button
                 OutlinedButton(
-                    onClick = onFacebookLoginClick,
+                    onClick = onFacebookClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -264,26 +257,6 @@ fun LoginScreen(
                         )
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Don't have an account? ",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Text(
-                    text = "Sign up",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clickable { onNavigateToSignup() }
-                )
             }
         }
     }
