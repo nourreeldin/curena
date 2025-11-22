@@ -1,49 +1,67 @@
 package com.fueians.medicationapp.model.repository
 
+import at.favre.lib.crypto.bcrypt.BCrypt
+import com.fueians.medicationapp.model.dao.UserDao
 import com.fueians.medicationapp.model.entities.UserEntity
-import com.fueians.medicationapp.model.services.AuthService
-import com.fueians.medicationapp.model.security.TokenManager
+import java.util.UUID
 
-class AuthRepository(
-    private val authService: AuthService,
-    private val tokenManager: TokenManager
-) {
+/**
+ * AuthRepository
+ *
+ * Responsibility: Provide a clean, synchronous API for user authentication operations.
+ * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ */
+class AuthRepository {
 
-    suspend fun login(email: String, password: String): Result<UserEntity> {
-        return try {
-            val response = authService.login(email, password)
-            tokenManager.saveToken(response.token)
-            Result.Success(response.user)
-        } catch (e: Exception) {
-            Result.Failure(e)
+    // DAO is now a private attribute with a placeholder implementation.
+    private val userDao: UserDao = object : UserDao {
+        private val inMemoryUsers = mutableMapOf<String, UserEntity>()
+
+        override fun getUserById(id: String): UserEntity? = inMemoryUsers[id]
+        override fun getUserByEmail(email: String): UserEntity? = inMemoryUsers.values.find { it.email == email }
+        override fun insertUser(user: UserEntity) { inMemoryUsers[user.id] = user }
+        override fun updateUser(user: UserEntity) { inMemoryUsers[user.id] = user }
+        override fun deleteUser(user: UserEntity) { inMemoryUsers.remove(user.id) }
+    }
+
+    fun createAccount(name: String, email: String, password: String): UserEntity {
+        if (userDao.getUserByEmail(email) != null) {
+            throw Exception("An account with this email already exists.")
+        }
+        val hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray())
+        val newUser = UserEntity(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            email = email,
+            passwordHash = hashedPassword
+        )
+        userDao.insertUser(newUser)
+        return newUser
+    }
+
+    fun login(email: String, password: String): UserEntity {
+        val user = userDao.getUserByEmail(email)
+            ?: throw Exception("User not found.")
+
+        val result = BCrypt.verifyer().verify(password.toCharArray(), user.passwordHash)
+        if (result.verified) {
+            return user
+        } else {
+            throw Exception("Invalid password.")
         }
     }
 
-    suspend fun signup(email: String, password: String): Result<UserEntity> {
-        return try {
-            val response = authService.signup(email, password)
-            tokenManager.saveToken(response.token)
-            Result.Success(response.user)
-        } catch (e: Exception) {
-            Result.Failure(e)
+    fun changePassword(userId: String, oldPassword: String, newPassword: String) {
+        val user = userDao.getUserById(userId)
+            ?: throw Exception("User not found")
+
+        val result = BCrypt.verifyer().verify(oldPassword.toCharArray(), user.passwordHash)
+        if (!result.verified) {
+            throw Exception("Old password is not correct")
         }
-    }
 
-    fun logout() {
-        tokenManager.clearToken()
+        val newHashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray())
+        val updatedUser = user.copy(passwordHash = newHashedPassword)
+        userDao.updateUser(updatedUser)
     }
-
-    fun getCurrentUser(): UserEntity? {
-        return tokenManager.getCurrentUser()
-    }
-
-    fun isUserLoggedIn(): Boolean {
-        return tokenManager.hasValidToken()
-    }
-}
-
-// Result sealed class for handling success/error states
-sealed class Result<out T> {
-    data class Success<T>(val data: T) : Result<T>()
-    data class Failure(val exception: Exception) : Result<Nothing>()
 }

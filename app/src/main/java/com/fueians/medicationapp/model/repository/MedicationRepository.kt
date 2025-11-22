@@ -1,97 +1,66 @@
 package com.fueians.medicationapp.model.repository
 
-import io.reactivex.Completable
-import io.reactivex.Observable
-
 import com.fueians.medicationapp.model.dao.MedicationDao
-import com.fueians.medicationapp.model.dao.AdherenceLogDao
-import com.fueians.medicationapp.model.dao.RefillDao
-import com.fueians.medicationapp.remote.SupabaseClient
-import com.fueians.medicationapp.model.services.NotificationService
-import com.fueians.medicationapp.model.services.SyncService
-import com.fueians.medicationapp.model.services.ReminderService
+import com.fueians.medicationapp.model.entities.Medication
 
+/**
+ * MedicationRepository
+ *
+ * Responsibility: Provide a clean, synchronous API for medication data operations.
+ * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ */
+class MedicationRepository {
 
-class MedicationRepository (
-    private val medicationDao: MedicationDao,
-    private val adherenceLogDao: AdherenceLogDao,
-    private val refillDao: RefillDao,
-    private val supabaseClient: SupabaseClient,
-    private val notificationService: NotificationService,
-    private val reminderService: ReminderService,
-    private val syncService: SyncService
-){
-    // ---------------------------------------------------------
-    // GET ALL MEDICATIONS
-    // ---------------------------------------------------------
-    fun getAllMedications(): Observable<List<Medication>> {
-        return medicationDao.getAllMedications()
-    }
+    // DAO is now a private attribute with a placeholder implementation.
+    private val medicationDao: MedicationDao = object : MedicationDao {
+        private val inMemoryMedications = mutableMapOf<String, Medication>()
 
-    // ---------------------------------------------------------
-    // ADD MEDICATION
-    // ---------------------------------------------------------
-    fun addMedication(medication: Medication): Completable {
-        return Completable.fromAction {
-            medicationDao.insertMedication(medication)
-
-            reminderService.scheduleMedicationReminder(medication)
-
-            notificationService.sendCreatedMedicationNotification(medication)
+        override fun getMedicationsForUser(userId: String): List<Medication> {
+            return inMemoryMedications.values.filter { it.userId == userId }
         }
-    }
-    // ---------------------------------------------------------
-    // UPDATE MEDICATION
-    // ---------------------------------------------------------
-    fun updateMedication(medication: Medication): Completable {
-        return Completable.fromAction {
-            medicationDao.updateMedication(medication)
 
-            reminderService.updateMedicationReminder(medication)
+        override fun getMedicationById(medicationId: String): Medication? {
+            return inMemoryMedications[medicationId]
         }
-    }
-    // ---------------------------------------------------------
-    //  DELETE MEDICATION
-    // ---------------------------------------------------------
-    fun deleteMedication(id: String): Completable {
-        return Completable.fromAction {
-            val medication = medicationDao.getMedicationByIdSync(id)
-            medicationDao.deleteMedication(id)
 
-            reminderService.cancelMedicationReminder(id)
+        override fun searchMedicationsForUser(userId: String, query: String): List<Medication> {
+            return inMemoryMedications.values.filter { it.userId == userId && it.name.contains(query, ignoreCase = true) }
+        }
 
-            notificationService.sendDeletedMedicationNotification(medication)
+        override fun insertMedication(medication: Medication) {
+            inMemoryMedications[medication.id] = medication
+        }
+
+        override fun updateMedication(medication: Medication) {
+            inMemoryMedications[medication.id] = medication
+        }
+
+        override fun deleteMedication(medication: Medication) {
+            inMemoryMedications.remove(medication.id)
         }
     }
 
-    // ---------------------------------------------------------
-    //  SEARCH
-    // ---------------------------------------------------------
-    fun searchMedications(query: String): Observable<List<Medication>> {
-        return medicationDao.searchMedications(query)
+    fun loadMedications(userId: String): List<Medication> {
+        return medicationDao.getMedicationsForUser(userId)
     }
 
-    // ---------------------------------------------------------
-    //  REFILL STATUS
-    // ---------------------------------------------------------
-    fun getRefillStatus(medicationId: String): Observable<Refill> {
-        return refillDao.getRefillByMedicationId(medicationId)
+    fun loadMedicationDetails(medicationId: String): Medication? {
+        return medicationDao.getMedicationById(medicationId)
     }
 
-    fun updateRefill(refill: Refill): Completable {
-        return Completable.fromAction {
-            refillDao.updateRefill(refill)
-        }
+    fun addMedication(medication: Medication) {
+        medicationDao.insertMedication(medication)
     }
 
-    // ---------------------------------------------------------
-    //  SYNC WITH SERVER
-    // ---------------------------------------------------------
-    fun syncMedications(): Completable {
-        return Completable.fromAction {
-            syncService.syncMedications()
-        }
+    fun updateMedication(medication: Medication) {
+        medicationDao.updateMedication(medication)
     }
 
+    fun deleteMedication(medication: Medication) {
+        medicationDao.deleteMedication(medication)
+    }
 
+    fun searchMedications(userId: String, query: String): List<Medication> {
+        return medicationDao.searchMedicationsForUser(userId, query)
+    }
 }

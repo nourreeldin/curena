@@ -1,16 +1,17 @@
 package com.fueians.medicationapp.presenter.User
 
 import com.fueians.medicationapp.model.entities.UserEntity
-import com.fueians.medicationapp.presenter.TestRepo.UserRepository
+import com.fueians.medicationapp.model.repository.UserRepository
+import com.fueians.medicationapp.presenter.Iprofile.IProfileView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // =========================================================================
-// 1. Placeholder Service & View Interface
+// 1. Placeholder Service
 // =========================================================================
 
 class SecurityManager {
@@ -20,26 +21,15 @@ class SecurityManager {
     }
 }
 
-interface IProfileView {
-    fun showLoading()
-    fun hideLoading()
-    fun displayUserProfile(user: UserEntity)
-    fun displayError(message: String)
-    fun onProfileUpdated()
-    fun onPasswordChanged()
-    fun onLogout()
-}
-
 // =========================================================================
 // 2. Presenter
 // =========================================================================
 
-class UserPresenter(
-    private var view: IProfileView?,
-    // In a real app, these would be injected.
-    private val userRepository: UserRepository,
-    private val securityManager: SecurityManager = SecurityManager()
-) {
+class UserPresenter(private var view: IProfileView?) {
+
+    // Dependencies are now private attributes, instantiated by the presenter.
+    private val userRepository = UserRepository()
+    private val securityManager = SecurityManager()
 
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -55,10 +45,15 @@ class UserPresenter(
     fun loadUserProfile(userId: String) {
         view?.showLoading()
         presenterScope.launch {
-            // Assuming the repo has a method to get user by ID
-            userRepository.getUserById(userId).collect {
-                it?.let { user -> view?.displayUserProfile(user) }
+            try {
+                val user = withContext(Dispatchers.IO) {
+                    userRepository.getUserById(userId)
+                }
                 view?.hideLoading()
+                user?.let { view?.displayUserProfile(it) }
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load profile.")
             }
         }
     }
@@ -67,7 +62,9 @@ class UserPresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                userRepository.updateUser(user) // Assumes repo has this method
+                withContext(Dispatchers.IO) {
+                    userRepository.updateUser(user)
+                }
                 view?.hideLoading()
                 view?.onProfileUpdated()
             } catch (e: Exception) {
@@ -81,9 +78,9 @@ class UserPresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                // This logic would be more complex, involving rehashing
-                // For now, we assume a simple repository method
-                userRepository.changePassword(userId, oldPassword, newPassword)
+                withContext(Dispatchers.IO) {
+                    userRepository.changePassword(userId, oldPassword, newPassword)
+                }
                 view?.hideLoading()
                 view?.onPasswordChanged()
             } catch (e: Exception) {
@@ -96,15 +93,19 @@ class UserPresenter(
     fun updateProfilePhoto(userId: String, photoUri: String) {
         view?.showLoading()
         presenterScope.launch {
-            // In a real app, you would upload the photo and update the user's photo URL
-            println("Updating photo for user $userId with URI: $photoUri")
-            // Simulate updating the user profile with a new photo URL
-            val user = userRepository.getUserById(userId).firstOrNull()?.copy(photoUrl = photoUri)
-            if(user != null) {
-                 userRepository.updateUser(user)
+            try {
+                withContext(Dispatchers.IO) {
+                    val user = userRepository.getUserById(userId)
+                        ?: throw Exception("User not found.")
+                    val updatedUser = user.copy(photoUrl = photoUri)
+                    userRepository.updateUser(updatedUser)
+                }
+                view?.hideLoading()
+                view?.onProfileUpdated()
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to update photo.")
             }
-            view?.hideLoading()
-            view?.onProfileUpdated()
         }
     }
 

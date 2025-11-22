@@ -1,75 +1,88 @@
 package com.fueians.medicationapp.model.repository
 
-
-
-import io.reactivex.Completable
-import io.reactivex.Observable
-import io.reactivex.Single
-import com.fueians.medicationapp.model.dao.ReportDao
 import com.fueians.medicationapp.model.dao.AdherenceLogDao
-import com.fueians.medicationapp.model.dao.MedicationDaoremote.SupabaseClient
+import com.fueians.medicationapp.model.dao.ReportDao
+import com.fueians.medicationapp.model.entities.AdherenceLog
+import com.fueians.medicationapp.model.entities.DateRange
+import com.fueians.medicationapp.model.entities.ReportEntity
+import com.fueians.medicationapp.model.entities.ReportType
+import java.util.Date
+import java.util.UUID
 
-class ReportRepository
-    (
-    private val reportDao: ReportDao,
-    private val adherenceLogDao: AdherenceLogDao,
-    private val supabaseClient: SupabaseClient,
-    private val reportGenerationService: ReportGenerationService
-)
-{
+/**
+ * ReportRepository
+ *
+ * Responsibility: Provide a clean, synchronous API for generating and managing reports.
+ * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ */
+class ReportRepository {
 
-
-    // Get all reports stored locally
-    fun getAllReports(): Observable<List<Report>> {
-        return reportDao.getAllReports()
+    // DAOs are now private attributes with placeholder implementations.
+    private val reportDao: ReportDao = object : ReportDao {
+        private val reports = mutableMapOf<String, ReportEntity>()
+        override fun getReportsForPatient(patientId: String) = reports.values.filter { it.patientId == patientId }
+        override fun getReportById(reportId: String) = reports[reportId]
+        override fun insertReport(report: ReportEntity) { reports[report.id] = report }
+        override fun deleteReport(reportId: String) { reports.remove(reportId) }
     }
 
-
-    // Get a specific report by ID
-    fun getReportById(id: String): Observable<Report> {
-        return reportDao.getReportById(id)
+    private val adherenceLogDao: AdherenceLogDao = object : AdherenceLogDao {
+        override fun getLogsForPatient(patientId: String): List<AdherenceLog> = emptyList()
+        override fun insertLog(log: AdherenceLog) {}
+        override fun getMissedDoses(): List<AdherenceLog> = emptyList()
     }
 
-
-    // Create a new report using logs and generation service
-    fun createReport(startDate: Date, endDate: Date, type: ReportType): Single<Report> {
-        return ReportGenerationService.generateReport(startDate, endDate, type)
-            .doOnSuccess { report ->
-                reportDao.saveReport(report)
-            }
-    }
-
-
-    // Delete report locally
-    fun deleteReport(id: String): Completable {
-        return Completable.fromAction {
-            reportDao.deleteReport(id)
+    /**
+     * Generates a new report based on the given parameters.
+     * This is a blocking method and must be called from a background thread.
+     */
+    fun generateReport(patientId: String, type: ReportType, dateRange: DateRange): ReportEntity {
+        // In a real app, this would query various DAOs and compile data.
+        val reportDataJson = when (type) {
+            ReportType.ADHERENCE_SUMMARY -> "{\"adherence\": \"92%\"}"
+            ReportType.MEDICATION_HISTORY -> "{\"medications\": [\"Aspirin\", \"Lisinopril\"]}"
+            ReportType.FULL_REPORT -> "{\"adherence\": \"92%\", \"medications\": [\"Aspirin\"]}"
         }
+
+        val report = ReportEntity(
+            id = UUID.randomUUID().toString(),
+            patientId = patientId,
+            generationDate = Date(),
+            startDate = dateRange.startDate,
+            endDate = dateRange.endDate,
+            type = type,
+            dataJson = reportDataJson
+        )
+
+        reportDao.insertReport(report)
+        return report
     }
 
-
-    // Retrieve adherence logs between date range
-    fun getAdherenceLogs(startDate: Date, endDate: Date): Observable<List<AdherenceLog>> {
-        return adherenceLogDao.getLogs(startDate, endDate)
+    /**
+     * Loads all previously generated reports for a specific patient.
+     * This is a blocking method and must be called from a background thread.
+     */
+    fun loadReports(patientId: String): List<ReportEntity> {
+        return reportDao.getReportsForPatient(patientId)
     }
 
-
-    // Calculate statistics for a report
-    fun calculateStatistics(reportId: String): Single<Map<String, Any>> {
-        return ReportGenerationService.calculateStatistics(reportId)
+    /**
+     * Deletes a specific report.
+     * This is a blocking method and must be called from a background thread.
+     */
+    fun deleteReport(reportId: String) {
+        reportDao.deleteReport(reportId)
     }
 
+    /**
+     * Shares a report. (e.g., creates a PDF, sends an email)
+     * This is a blocking method and must be called from a background thread.
+     */
+    fun shareReport(reportId: String) {
+        val report = reportDao.getReportById(reportId)
+            ?: throw Exception("Report not found.")
 
-    // Sync reports with server
-    fun syncReports(): Completable {
-        return supabaseClient.syncReports()
-            .andThen(reportDao.getAllReports().firstOrError())
-            .flatMapCompletable { reports ->
-                Completable.fromAction {
-                    reportDao.saveReports(reports)
-                }
-            }
+        // Placeholder for sharing logic (e.g., creating a file, using an Intent)
+        println("Sharing report: ${report.id} of type ${report.type}")
     }
 }
-
-fun ReportGenerationService.Companion.generateReport(startDate: Any, endDate: Any, type: Any) {}

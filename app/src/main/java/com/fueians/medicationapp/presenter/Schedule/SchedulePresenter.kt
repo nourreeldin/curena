@@ -1,20 +1,16 @@
 package com.fueians.medicationapp.presenter.Schedule
 
-import com.fueians.medicationapp.presenter.TestRepo.AdherenceLog
-import com.fueians.medicationapp.presenter.TestRepo.MedicationSchedule
+import com.fueians.medicationapp.model.repository.ScheduleRepository
+import com.fueians.medicationapp.model.entities.MedicationSchedule
 import com.fueians.medicationapp.presenter.TestRepo.NotificationSettings
-import com.fueians.medicationapp.presenter.TestRepo.ScheduleRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-// =========================================================================
-// 1. Placeholder Service & View Interface
-// =========================================================================
-
+// Placeholder service - this would have its own file
 class ReminderService {
     fun setReminder(schedule: MedicationSchedule) {
         println("Reminder set for schedule: ${schedule.id}")
@@ -25,26 +21,11 @@ class ReminderService {
     }
 }
 
-interface IScheduleView {
-    fun showLoading()
-    fun hideLoading()
-    fun displaySchedules(schedules: List<MedicationSchedule>)
-    fun displayMissedDoses(doses: List<AdherenceLog>)
-    fun displayError(message: String)
-    fun onScheduleCreated()
-    fun onScheduleUpdated()
-    fun onScheduleDeleted()
-}
+class SchedulePresenter(private var view: IScheduleView?) {
 
-// =========================================================================
-// 2. Presenter
-// =========================================================================
-
-class SchedulePresenter(
-    private var view: IScheduleView?,
-    private val scheduleRepository: ScheduleRepository,
-    private val reminderService: ReminderService = ReminderService()
-) {
+    // Dependencies are now private attributes, instantiated by the presenter.
+    private val scheduleRepository = ScheduleRepository()
+    private val reminderService = ReminderService()
 
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -60,9 +41,15 @@ class SchedulePresenter(
     fun loadSchedules() {
         view?.showLoading()
         presenterScope.launch {
-            scheduleRepository.loadSchedules().collectLatest {
-                view?.displaySchedules(it)
+            try {
+                val schedules = withContext(Dispatchers.IO) {
+                    scheduleRepository.loadSchedules()
+                }
                 view?.hideLoading()
+                view?.displaySchedules(schedules)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load schedules.")
             }
         }
     }
@@ -70,9 +57,15 @@ class SchedulePresenter(
     fun loadTodaySchedules() {
         view?.showLoading()
         presenterScope.launch {
-            scheduleRepository.loadTodaySchedules().collectLatest {
-                view?.displaySchedules(it)
+            try {
+                val schedules = withContext(Dispatchers.IO) {
+                    scheduleRepository.loadTodaySchedules()
+                }
                 view?.hideLoading()
+                view?.displaySchedules(schedules)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load today's schedules.")
             }
         }
     }
@@ -81,7 +74,7 @@ class SchedulePresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                scheduleRepository.createSchedule(schedule)
+                withContext(Dispatchers.IO) { scheduleRepository.createSchedule(schedule) }
                 if (schedule.isRecurring) {
                     reminderService.setReminder(schedule)
                 }
@@ -98,7 +91,7 @@ class SchedulePresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                scheduleRepository.updateSchedule(schedule)
+                withContext(Dispatchers.IO) { scheduleRepository.updateSchedule(schedule) }
                 if (schedule.isRecurring) {
                     reminderService.setReminder(schedule)
                 }
@@ -115,7 +108,7 @@ class SchedulePresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                scheduleRepository.deleteSchedule(scheduleId)
+                withContext(Dispatchers.IO) { scheduleRepository.deleteSchedule(scheduleId) }
                 reminderService.cancelReminder(scheduleId)
                 view?.hideLoading()
                 view?.onScheduleDeleted()
@@ -129,7 +122,7 @@ class SchedulePresenter(
     fun markDoseTaken(scheduleId: String, timestamp: Long) {
         presenterScope.launch {
             try {
-                scheduleRepository.markDoseTaken(scheduleId, timestamp)
+                withContext(Dispatchers.IO) { scheduleRepository.markDoseTaken(scheduleId, timestamp) }
             } catch (e: Exception) {
                 view?.displayError(e.message ?: "Failed to log dose.")
             }
@@ -139,7 +132,7 @@ class SchedulePresenter(
     fun markDoseMissed(scheduleId: String) {
         presenterScope.launch {
             try {
-                scheduleRepository.markDoseMissed(scheduleId)
+                withContext(Dispatchers.IO) { scheduleRepository.markDoseMissed(scheduleId) }
             } catch (e: Exception) {
                 view?.displayError(e.message ?: "Failed to log missed dose.")
             }
@@ -149,9 +142,13 @@ class SchedulePresenter(
     fun loadMissedDoses() {
         view?.showLoading()
         presenterScope.launch {
-            scheduleRepository.loadMissedDoses().collectLatest {
-                view?.displayMissedDoses(it)
+            try {
+                val doses = withContext(Dispatchers.IO) { scheduleRepository.loadMissedDoses() }
                 view?.hideLoading()
+                view?.displayMissedDoses(doses)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load missed doses.")
             }
         }
     }
@@ -159,7 +156,7 @@ class SchedulePresenter(
     fun updateNotificationSettings(settings: NotificationSettings) {
         presenterScope.launch {
             try {
-                scheduleRepository.updateNotificationSettings(settings)
+                withContext(Dispatchers.IO) { scheduleRepository.updateNotificationSettings(settings) }
             } catch (e: Exception) {
                 view?.displayError(e.message ?: "Failed to update settings.")
             }

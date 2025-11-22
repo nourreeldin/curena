@@ -1,28 +1,24 @@
 package com.fueians.medicationapp.presenter.DrugInteraction
 
-import com.fueians.medicationapp.model.repository.DrugInfo
+import com.fueians.medicationapp.model.entities.DrugInfo
 import com.fueians.medicationapp.model.repository.DrugInfoRepository
-import com.fueians.medicationapp.model.repository.InteractionDetail
-import com.fueians.medicationapp.model.repository.InteractionResult
-import com.fueians.medicationapp.model.repository.Medication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // =========================================================================
-// 1. View Interface
+// 1. Placeholder Models (for demonstration)
 // =========================================================================
+data class Medication(val id: String, val name: String)
+data class InteractionResult(val id: String, val summary: String)
+data class InteractionDetail(val id: String, val description: String)
 
-/**
- * Interface for the Drug Interaction View (e.g., Activity or Fragment).
- */
+// =========================================================================
+// 2. View Interface
+// =========================================================================
 interface IDrugInteractionView {
     fun showLoading()
     fun hideLoading()
@@ -35,150 +31,123 @@ interface IDrugInteractionView {
 }
 
 // =========================================================================
-// 2. Drug Interaction Service Placeholder (Dependency)
+// 3. Drug Interaction Service Placeholder
 // =========================================================================
+class DrugInteractionService {
+    fun checkInteractions(medications: List<Medication>): InteractionResult {
+        println("Checking interactions for: ${medications.joinToString { it.name }}")
+        if (medications.size < 2) {
+            throw IllegalStateException("Requires at least two medications for an interaction check.")
+        }
+        return InteractionResult("interaction-123", "Minor interaction found between ${medications[0].name} and ${medications[1].name}.")
+    }
 
-/**
- * Placeholder service for the external interaction check logic.
- */
-class DrugInteractionService(
-    // Dependencies injected in real app
-    private val drugAPIClient: DrugAPIClient
-)
-
-/**
- * Placeholder client for API interaction.
- */
-class DrugAPIClient
+    fun loadInteractionDetails(interactionId: String): InteractionDetail {
+        println("Loading details for interaction: $interactionId")
+        return InteractionDetail(interactionId, "Detailed description of the interaction and recommended actions.")
+    }
+}
 
 // =========================================================================
-// 3. Presenter
+// 4. Presenter
 // =========================================================================
+class DrugInteractionPresenter(private var view: IDrugInteractionView?) {
 
-/**
- * Handles drug interaction checks, searching the drug database, and providing drug information.
- *
- * Usage: Used by drug search and interaction checker activities.
- */
-class DrugInteractionPresenter(
-    private var view: IDrugInteractionView?,
-    private val drugInfoRepository: DrugInfoRepository,
-    private val drugInteractionService: DrugInteractionService
-) {
-    // compositeDisposable replaced by CoroutineScope for modern Kotlin concurrency.
+    // Dependencies are instantiated as private attributes.
+    private val drugInfoRepository = DrugInfoRepository()
+    private val drugInteractionService = DrugInteractionService()
+
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // --- Core Methods ---
-
-    /**
-     * Attach view when the Activity/Fragment is created.
-     */
     fun attachView(view: IDrugInteractionView) {
         this.view = view
     }
 
-    /**
-     * Detach view when the Activity/Fragment is destroyed to prevent memory leaks.
-     */
     fun detachView() {
-        this.view = null
-        presenterScope.cancel() // Cancel all coroutines launched in this scope
+        view = null
+        presenterScope.cancel()
     }
 
-    // --- Search and Load ---
-
-    /**
-     * Search the drug database based on a text query.
-     */
     fun searchDrug(query: String) {
+        view?.showLoading()
         presenterScope.launch {
-            drugInfoRepository.searchDrug(query)
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Search failed: ${exception.message}")
-                }
-                .collect { drugs ->
-                    view?.displaySearchResults(drugs)
-                }
-        }
-    }
-
-    /**
-     * Load detailed information for a specific drug.
-     */
-    fun loadDrugInfo(drugId: String) {
-        presenterScope.launch {
-            drugInfoRepository.loadDrugInfo(drugId)
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Failed to load drug info: ${exception.message}")
-                }
-                .collect { drug ->
-                    if (drug != null) {
-                        view?.displayDrugInfo(drug)
-                    } else {
-                        view?.showErrorMessage("Drug information not found.")
-                    }
-                }
-        }
-    }
-
-    // --- Interaction Check ---
-
-    /**
-     * Check interactions between a list of medications.
-     */
-    fun checkInteractions(medications: List<Medication>) {
-        presenterScope.launch {
-            view?.showLoading()
             try {
-                if (medications.size < 2) {
-                    throw IllegalStateException("Requires at least two medications for an interaction check.")
+                val drugs = withContext(Dispatchers.IO) {
+                    drugInfoRepository.searchDrugs(query)
                 }
-                val result = drugInfoRepository.checkInteractions(medications)
-                view?.displayInteractionResults(result)
-            } catch (e: Exception) {
-                view?.showErrorMessage("Error checking interactions: ${e.message}")
-            } finally {
                 view?.hideLoading()
+                view?.displaySearchResults(drugs)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.showErrorMessage("Search failed: ${e.message}")
             }
         }
     }
 
-    /**
-     * Load detailed information for a specific interaction.
-     */
-    fun loadInteractionDetails(interactionId: String) {
+    fun loadDrugInfo(drugId: String) {
+        view?.showLoading()
         presenterScope.launch {
-            drugInfoRepository.loadInteractionDetails(interactionId)
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Failed to load interaction details: ${exception.message}")
+            try {
+                val drug = withContext(Dispatchers.IO) {
+                    drugInfoRepository.loadDrugInfo(drugId)
                 }
-                .collect { details ->
-                    view?.displayInteractionDetails(details)
+                view?.hideLoading()
+                if (drug != null) {
+                    view?.displayDrugInfo(drug)
+                } else {
+                    view?.showErrorMessage("Drug information not found.")
                 }
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.showErrorMessage("Failed to load drug info: ${e.message}")
+            }
         }
     }
 
-    // --- Persistence ---
-
-    /**
-     * Cache drug information locally.
-     */
-    fun saveDrugInfo(drugInfo: DrugInfo) {
+    fun checkInteractions(medications: List<Medication>) {
+        view?.showLoading()
         presenterScope.launch {
-            view?.showLoading()
             try {
-                drugInfoRepository.saveDrugInfo(drugInfo)
+                val result = withContext(Dispatchers.IO) { // Assumes this might be a network call in future
+                    drugInteractionService.checkInteractions(medications)
+                }
+                view?.hideLoading()
+                view?.displayInteractionResults(result)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.showErrorMessage("Error checking interactions: ${e.message}")
+            }
+        }
+    }
+
+    fun loadInteractionDetails(interactionId: String) {
+        view?.showLoading()
+        presenterScope.launch {
+            try {
+                val details = withContext(Dispatchers.IO) { // Assumes this might be a network call
+                    drugInteractionService.loadInteractionDetails(interactionId)
+                }
+                view?.hideLoading()
+                view?.displayInteractionDetails(details)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.showErrorMessage("Failed to load interaction details: ${e.message}")
+            }
+        }
+    }
+
+    fun saveDrugInfo(drugInfo: DrugInfo) {
+        view?.showLoading()
+        presenterScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    drugInfoRepository.saveDrugInfo(drugInfo)
+                }
+                view?.hideLoading()
                 view?.onDrugInfoSaved()
             } catch (e: Exception) {
-                view?.showErrorMessage("Error saving drug info: ${e.message}")
-            } finally {
                 view?.hideLoading()
+                view?.showErrorMessage("Error saving drug info: ${e.message}")
             }
         }
     }

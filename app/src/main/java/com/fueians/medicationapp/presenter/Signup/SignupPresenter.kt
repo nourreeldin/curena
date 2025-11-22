@@ -1,13 +1,13 @@
 package com.fueians.medicationapp.presenter.Signup
 
 import com.fueians.medicationapp.model.entities.UserEntity
-import com.fueians.medicationapp.presenter.TestRepo.UserRepository
-import com.fueians.medicationapp.presenter.Login.Result
+import com.fueians.medicationapp.model.repository.UserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // =========================================================================
 // 1. View Interface
@@ -26,8 +26,8 @@ interface SignupView {
 
 class SignupPresenter(private var view: SignupView?) {
 
-    // In a real app, this should be injected.
-    private val userRepository: UserRepository = UserRepository()
+    // The repository is now a private attribute, instantiated by the presenter.
+    private val userRepository = UserRepository()
 
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -61,19 +61,18 @@ class SignupPresenter(private var view: SignupView?) {
         view?.showLoading()
 
         presenterScope.launch {
-            val result = userRepository.createAccount(name, email, password)
-
-            view?.hideLoading()
-
-            when (result) {
-                is Result.Success -> {
-                    view?.onSignupSuccess(result.data)
+            try {
+                // Run the blocking repository call on a background thread
+                val newUser = withContext(Dispatchers.IO) {
+                    userRepository.createAccount(name, email, password)
                 }
-                is Result.Failure -> {
-                    view?.showSignupError(
-                        result.exception.message ?: "Signup failed due to an unknown error."
-                    )
-                }
+                // Switch back to the Main thread to update the UI
+                view?.hideLoading()
+                view?.onSignupSuccess(newUser)
+            } catch (e: Exception) {
+                // Handle exceptions thrown by the repository
+                view?.hideLoading()
+                view?.showSignupError(e.message ?: "Signup failed due to an unknown error.")
             }
         }
     }
@@ -84,23 +83,17 @@ class SignupPresenter(private var view: SignupView?) {
     private fun isStrongPassword(password: String): Boolean {
         if (password.length < 8)
             return false
-
         if (!password.contains(Regex("[A-Z]")))
             return false
-
         if (!password.contains(Regex("[a-z]")))
             return false
-
         if (!password.contains(Regex("\\d")))
             return false
-
-        if (!password.contains(Regex("[@\$!%*?&]")))
+        if (!password.contains(Regex("[@$!%*?&]")))
             return false
-
         return true
     }
 
-    // Call this when the view (e.g., Fragment/Activity) is destroyed to prevent memory leaks.
     fun detachView() {
         view = null
         presenterScope.cancel()

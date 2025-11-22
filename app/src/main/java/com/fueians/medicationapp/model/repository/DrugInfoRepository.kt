@@ -1,49 +1,42 @@
 package com.fueians.medicationapp.model.repository
 
-
-import io.reactivex.Completable
-import io.reactivex.Observable
 import com.fueians.medicationapp.model.dao.DrugInfoDao
-import com.fueians.medicationapp.model.entities.DrugInfoEntity
+import com.fueians.medicationapp.model.entities.DrugInfo
 
-class DrugInfoRepository
-    (
-    private val drugInfoDao: DrugInfoDao,
-    private val drugAPIClient: DrugAPIClient)
-{
-    // Search drugs from external API
-    fun searchDrug(query: String): Observable<List<DrugInfo>> {
-        return drugAPIClient.searchDrug(query)
-    }
+/**
+ * DrugInfoRepository
+ *
+ * Responsibility: Provide a clean, synchronous API for drug information data operations.
+ * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ */
+class DrugInfoRepository {
 
+    // DAO is now a private attribute with a placeholder implementation.
+    private val drugInfoDao: DrugInfoDao = object : DrugInfoDao {
+        private val inMemoryDrugs = mutableMapOf<String, DrugInfo>()
 
-    // Get drug details by ID (remote + fallback to local cache)
-    fun getDrugById(id: String): Observable<DrugInfo> {
-        return drugAPIClient.getDrugById(id)
-            .doOnNext { drugInfoDao.saveDrugInfo(it) }
-            .onErrorResumeNext { _: Throwable -> drugInfoDao.getDrugById(id).toObservable() }
-    }
+        override fun searchDrugs(query: String): List<DrugInfo> {
+            return inMemoryDrugs.values.filter { it.name.contains(query, ignoreCase = true) }
+        }
 
+        override fun getDrugInfoById(drugId: String): DrugInfo? {
+            return inMemoryDrugs[drugId]
+        }
 
-    // Check interactions between multiple drugs
-    fun checkInteractions(drugIds: List<String>): Observable<List<DrugInteractionService>> {
-        return drugAPIClient.checkInteractions(drugIds)
-    }
-
-
-    // Save drug info to local cache
-    fun saveDrugInfo(drugInfo: DrugInfoEntity): Completable {
-        return Completable.fromAction {
-            drugInfoDao.saveDrugInfo(drugInfo)
+        override fun saveDrugInfo(drugInfo: DrugInfo) {
+            inMemoryDrugs[drugInfo.id] = drugInfo
         }
     }
 
-
-    // Get detailed interaction information
-    fun getInteractionDetails(interactionId: String): Observable<DrugInteractionService> {
-        return drugAPIClient.getInteractionDetails(interactionId)
+    fun searchDrugs(query: String): List<DrugInfo> {
+        return drugInfoDao.searchDrugs(query)
     }
 
+    fun loadDrugInfo(drugId: String): DrugInfo? {
+        return drugInfoDao.getDrugInfoById(drugId)
+    }
 
-
+    fun saveDrugInfo(drugInfo: DrugInfo) {
+        drugInfoDao.saveDrugInfo(drugInfo)
+    }
 }

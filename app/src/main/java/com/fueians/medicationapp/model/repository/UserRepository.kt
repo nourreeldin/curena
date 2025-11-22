@@ -1,78 +1,73 @@
-package com.fueians.medicationapp.model.repository;
+package com.fueians.medicationapp.model.repository
 
-import io.reactivex.Completable
-import io.reactivex.Single
-import io.reactivex.Observable
+import at.favre.lib.crypto.bcrypt.BCrypt
 import com.fueians.medicationapp.model.dao.UserDao
-import com.fueians.medicationapp.remote.SupabaseClient
-import com.fueians.medicationapp.model.services.EncryptionService
+import com.fueians.medicationapp.model.entities.UserEntity
+import java.util.UUID
 
-// UserRepository: Handles all operations related to user data and authentication
-class UserRepository (
-    private val userDao: UserDao,
-    private val supabaseClient: SupabaseClient,
-    private val encryptionService: EncryptionService,
-    private val securityManager: SecurityManager)
-{
-    // Register a new user
-    fun registerUser(email: String, password: String, name: String): Completable {
-    // Direct call, let Supabase handle errors
-        val encryptedPassword = encryptionService.encrypt(password)
-        return supabaseClient.register(email, encryptedPassword, name)
+/**
+ * UserRepository
+ *
+ * Responsibility: Provide a clean, synchronous API for user data operations.
+ * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ */
+class UserRepository {
+
+    // DAO is now a private attribute with a placeholder implementation.
+    private val userDao: UserDao = object : UserDao {
+        private val inMemoryUsers = mutableMapOf<String, UserEntity>()
+
+        override fun getUserById(id: String): UserEntity? = inMemoryUsers[id]
+        override fun getUserByEmail(email: String): UserEntity? = inMemoryUsers.values.find { it.email == email }
+        override fun insertUser(user: UserEntity) { inMemoryUsers[user.id] = user }
+        override fun updateUser(user: UserEntity) { inMemoryUsers[user.id] = user }
+        override fun deleteUser(user: UserEntity) { inMemoryUsers.remove(user.id) }
     }
 
-    // Login user and save profile locally
-    fun loginUser(email: String, password: String): Single<User> {
-        val encryptedPassword = encryptionService.encrypt(password)
-        return supabaseClient.login(email, encryptedPassword)
-            .doOnSuccess { user ->
-                userDao.saveUser(user)
-                securityManager.setLoggedIn(true)
-            }
-    }
-    // Verify email using received code
-    fun verifyEmail(code: String): Completable {
-        return supabaseClient.verifyEmail(code)
-    }
-
-
-    // Send password reset request
-    fun resetPassword(email: String): Completable {
-        return supabaseClient.resetPassword(email)
+    fun createAccount(name: String, email: String, password: String): UserEntity {
+        if (userDao.getUserByEmail(email) != null) {
+            throw Exception("An account with this email already exists.")
+        }
+        val hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray())
+        val newUser = UserEntity(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            email = email,
+            passwordHash = hashedPassword
+        )
+        userDao.insertUser(newUser)
+        return newUser
     }
 
+    fun login(email: String, password: String): UserEntity {
+        val user = userDao.getUserByEmail(email)
+            ?: throw Exception("User not found.")
 
-    // Get user profile from local database (Observable)
-    fun getUserProfile(): Observable<User> {
-        return userDao.observeUser()
-    }
-
-
-    // Update user profile locally and remotely
-    fun updateUserProfile(user: User): Completable {
-        return supabaseClient.updateProfile(user)
-            .doOnComplete { userDao.saveUser(user) }
-    }
-
-
-    // Change account password
-    fun changePassword(oldPassword: String, newPassword: String): Completable {
-        val oldEnc = encryptionService.encrypt(oldPassword)
-        val newEnc = encryptionService.encrypt(newPassword)
-        return supabaseClient.changePassword(oldEnc, newEnc)
-    }
-
-
-    // Logout: clear local data and update session state
-    fun logout(): Completable {
-        return Completable.fromAction {
-            securityManager.setLoggedIn(false)
-            userDao.clearUser()
+        val result = BCrypt.verifyer().verify(password.toCharArray(), user.passwordHash)
+        if (result.verified) {
+            return user
+        } else {
+            throw Exception("Invalid password.")
         }
     }
 
+    fun getUserById(userId: String): UserEntity? = userDao.getUserById(userId)
 
-    // Check if user is logged in
-    fun isUserLoggedIn(): Boolean = securityManager.isLoggedIn()
+    fun updateUser(user: UserEntity) = userDao.updateUser(user)
 
+    fun changePassword(userId: String, oldPassword: String, newPassword: String) {
+        val user = userDao.getUserById(userId)
+            ?: throw Exception("User not found")
+
+        val result = BCrypt.verifyer().verify(oldPassword.toCharArray(), user.passwordHash)
+        if (!result.verified) {
+            throw Exception("Old password is not correct")
+        }
+
+        val newHashedPassword = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray())
+        val updatedUser = user.copy(passwordHash = newHashedPassword)
+        userDao.updateUser(updatedUser)
+    }
+
+    fun deleteUser(user: UserEntity) = userDao.deleteUser(user)
 }

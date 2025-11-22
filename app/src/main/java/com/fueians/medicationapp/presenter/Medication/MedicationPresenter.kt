@@ -1,26 +1,23 @@
 package com.fueians.medicationapp.presenter.Medication
 
-import com.fueians.medicationapp.presenter.TestRepo.Medication
-import com.fueians.medicationapp.presenter.TestRepo.MedicationRepository
-import com.fueians.medicationapp.presenter.TestRepo.Refill
+import com.fueians.medicationapp.model.entities.Medication
+import com.fueians.medicationapp.model.repository.MedicationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-// =========================================================================
-// 1. Placeholder Service & View Interface
-// =========================================================================
-
+// Placeholder service - this would have its own file in a real app
 class DrugInteractionService {
-    suspend fun checkInteractions(medications: List<Medication>): List<String> {
-        // Placeholder logic
+    fun checkInteractions(medications: List<Medication>): List<String> {
+        println("Checking drug interactions...")
         return if (medications.size > 1) listOf("Potential interaction detected.") else emptyList()
     }
 }
 
+// View interface - this should be in its own file
 interface IMedicationView {
     fun showLoading()
     fun hideLoading()
@@ -33,16 +30,11 @@ interface IMedicationView {
     fun displayInteractions(interactions: List<String>)
 }
 
-// =========================================================================
-// 2. Presenter
-// =========================================================================
+class MedicationPresenter(private var view: IMedicationView?) {
 
-class MedicationPresenter(
-    private var view: IMedicationView?,
-    // In a real app, these would be injected.
-    private val medicationRepository: MedicationRepository,
-    private val drugInteractionService: DrugInteractionService = DrugInteractionService()
-) {
+    // Dependencies are now private attributes, instantiated by the presenter.
+    private val medicationRepository = MedicationRepository()
+    private val drugInteractionService = DrugInteractionService()
 
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -55,32 +47,18 @@ class MedicationPresenter(
         presenterScope.cancel()
     }
 
-    fun loadMedications() {
+    fun loadMedications(userId: String) {
         view?.showLoading()
         presenterScope.launch {
             try {
-                medicationRepository.loadMedications().collectLatest {
-                    view?.displayMedications(it)
-                    view?.hideLoading()
+                val medications = withContext(Dispatchers.IO) {
+                    medicationRepository.loadMedications(userId)
                 }
+                view?.hideLoading()
+                view?.displayMedications(medications)
             } catch (e: Exception) {
                 view?.hideLoading()
                 view?.displayError(e.message ?: "Failed to load medications.")
-            }
-        }
-    }
-
-    fun loadMedicationDetails(medicationId: String) {
-        view?.showLoading()
-        presenterScope.launch {
-            try {
-                medicationRepository.loadMedicationDetails(medicationId).collectLatest {
-                    it?.let { view?.displayMedicationDetails(it) }
-                    view?.hideLoading()
-                }
-            } catch (e: Exception) {
-                view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to load medication details.")
             }
         }
     }
@@ -89,7 +67,7 @@ class MedicationPresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                medicationRepository.addMedication(medication)
+                withContext(Dispatchers.IO) { medicationRepository.addMedication(medication) }
                 view?.hideLoading()
                 view?.onMedicationAdded()
             } catch (e: Exception) {
@@ -103,7 +81,7 @@ class MedicationPresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                medicationRepository.updateMedication(medication)
+                withContext(Dispatchers.IO) { medicationRepository.updateMedication(medication) }
                 view?.hideLoading()
                 view?.onMedicationUpdated()
             } catch (e: Exception) {
@@ -117,7 +95,7 @@ class MedicationPresenter(
         view?.showLoading()
         presenterScope.launch {
             try {
-                medicationRepository.deleteMedication(medication)
+                withContext(Dispatchers.IO) { medicationRepository.deleteMedication(medication) }
                 view?.hideLoading()
                 view?.onMedicationDeleted()
             } catch (e: Exception) {
@@ -127,14 +105,15 @@ class MedicationPresenter(
         }
     }
 
-    fun searchMedications(query: String) {
+    fun searchMedications(userId: String, query: String) {
         view?.showLoading()
         presenterScope.launch {
             try {
-                medicationRepository.searchMedications(query).collectLatest {
-                    view?.displayMedications(it)
-                    view?.hideLoading()
+                val medications = withContext(Dispatchers.IO) {
+                    medicationRepository.searchMedications(userId, query)
                 }
+                view?.hideLoading()
+                view?.displayMedications(medications)
             } catch (e: Exception) {
                 view?.hideLoading()
                 view?.displayError(e.message ?: "Failed to search medications.")
@@ -144,22 +123,9 @@ class MedicationPresenter(
 
     fun checkDrugInteractions(medications: List<Medication>) {
         presenterScope.launch {
-            try {
-                val interactions = drugInteractionService.checkInteractions(medications)
-                view?.displayInteractions(interactions)
-            } catch (e: Exception) {
-                view?.displayError(e.message ?: "Failed to check interactions.")
-            }
-        }
-    }
-
-    fun updateRefillStatus(refill: Refill) {
-        presenterScope.launch {
-            try {
-                medicationRepository.updateRefillStatus(refill)
-            } catch (e: Exception) {
-                view?.displayError(e.message ?: "Failed to update refill status.")
-            }
+            // This service is synchronous and doesn't need a background thread
+            val interactions = drugInteractionService.checkInteractions(medications)
+            view?.displayInteractions(interactions)
         }
     }
 }

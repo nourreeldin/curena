@@ -1,195 +1,136 @@
 package com.fueians.medicationapp.presenter.Caregiver
 
-import com.fueians.medicationapp.model.entities.CaregiverPatientEntity
-import com.fueians.medicationapp.model.entities.UserEntity
-import com.fueians.medicationapp.presenter.Caregiver.CaregiverRepository
-import com.fueians.medicationapp.presenter.Caregiver.MedicationRepository // Renamed for structure
+import com.fueians.medicationapp.model.repository.CaregiverRepository
+import com.fueians.medicationapp.model.repository.MedicationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-// =========================================================================
-// 1. View Interface
-// =========================================================================
+class CaregiverPresenter(private var view: ICaregiverView?) {
 
-/**
- * Interface for the Caregiver View (e.g., Activity or Fragment).
- */
-interface ICaregiverView {
-    fun showLoading()
-    fun hideLoading()
-    fun showPatients(patients: List<CaregiverPatientEntity>)
-    fun showPatientDetails(patient: UserEntity)
-    fun onPatientAdded(patientEmail: String)
-    fun onPatientRemoved(patientId: String)
-    fun onInvitationSent(email: String)
-    fun showAdherenceData(data: List<AdherenceLog>)
-    fun showMedications(medications: List<Medication>)
-    fun showErrorMessage(message: String)
-}
+    // Dependencies are now private attributes, instantiated by the presenter.
+    private val caregiverRepository = CaregiverRepository()
+    private val medicationRepository = MedicationRepository()
 
-// =========================================================================
-// 2. Presenter
-// =========================================================================
-
-class CaregiverPresenter(
-    private var view: ICaregiverView?,
-    private val caregiverRepository: CaregiverRepository,
-    private val medicationRepository: MedicationRepository // Assuming a basic repository exists
-) {
-
-    // Used for coroutines launched by this Presenter.
     private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // --- Attributes ---
-    // view: ICaregiverView - Attached view (in constructor)
-    // caregiverRepository: CaregiverRepository - Caregiver data repository (in constructor)
-    // medicationRepository: MedicationRepository - Medication data repository (in constructor)
-
-    // compositeDisposable is not needed when using Coroutines/Flows.
-
-    /**
-     * Attach view when the Activity/Fragment is created.
-     */
     fun attachView(view: ICaregiverView) {
         this.view = view
     }
 
-    /**
-     * Detach view when the Activity/Fragment is destroyed to prevent memory leaks.
-     */
     fun detachView() {
-        this.view = null
-        presenterScope.cancel() // Cancel all coroutines launched in this scope
+        view = null
+        presenterScope.cancel()
     }
 
-    /**
-     * Load all patients related to the current caregiver.
-     * Assumes the caregiver's ID is managed internally or injected.
-     */
     fun loadPatients(caregiverId: String) {
+        view?.showLoading()
         presenterScope.launch {
-            caregiverRepository.loadPatients(caregiverId)
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Failed to load patients: ${exception.message}")
+            try {
+                val patients = withContext(Dispatchers.IO) {
+                    caregiverRepository.loadPatients(caregiverId)
                 }
-                .collect { patients ->
-                    view?.showPatients(patients)
-                }
+                view?.hideLoading()
+                view?.displayPatients(patients)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load patients.")
+            }
         }
     }
 
-    /**
-     * Load detailed information for a specific patient.
-     */
     fun loadPatientDetails(patientId: String) {
+        view?.showLoading()
         presenterScope.launch {
-            caregiverRepository.loadPatientDetails(patientId)
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Failed to load patient details: ${exception.message}")
+            try {
+                val patient = withContext(Dispatchers.IO) {
+                    caregiverRepository.loadPatientDetails(patientId)
                 }
-                .collect { patient ->
-                    if (patient != null) {
-                        view?.showPatientDetails(patient)
-                    } else {
-                        view?.showErrorMessage("Patient details not found.")
-                    }
-                }
+                view?.hideLoading()
+                patient?.let { view?.displayPatientDetails(it) }
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load patient details.")
+            }
         }
     }
 
-    /**
-     * Add a new patient relationship via email lookup.
-     */
     fun addPatient(caregiverId: String, patientEmail: String) {
+        view?.showLoading()
         presenterScope.launch {
-            view?.showLoading()
             try {
-                caregiverRepository.addPatient(caregiverId, patientEmail)
-                view?.onPatientAdded(patientEmail)
-            } catch (e: Exception) {
-                view?.showErrorMessage("Error adding patient: ${e.message}")
-            } finally {
+                withContext(Dispatchers.IO) {
+                    caregiverRepository.addPatient(caregiverId, patientEmail)
+                }
                 view?.hideLoading()
+                view?.onPatientAdded()
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to add patient.")
             }
         }
     }
 
-    /**
-     * Remove an existing patient relationship.
-     */
-    fun removePatient(patientId: String) {
+    fun removePatient(patientId: String, caregiverId: String) {
+        view?.showLoading()
         presenterScope.launch {
-            view?.showLoading()
             try {
-                caregiverRepository.removePatient(patientId)
-                view?.onPatientRemoved(patientId)
-            } catch (e: Exception) {
-                view?.showErrorMessage("Error removing patient: ${e.message}")
-            } finally {
+                withContext(Dispatchers.IO) {
+                    caregiverRepository.removePatient(patientId, caregiverId)
+                }
                 view?.hideLoading()
+                view?.onPatientRemoved()
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to remove patient.")
             }
         }
     }
 
-    /**
-     * Send an invitation to a potential patient/user.
-     */
     fun sendInvitation(email: String) {
         presenterScope.launch {
-            view?.showLoading()
             try {
-                caregiverRepository.sendInvitation(email)
-                view?.onInvitationSent(email)
+                withContext(Dispatchers.IO) {
+                    caregiverRepository.sendInvitation(email)
+                }
             } catch (e: Exception) {
-                view?.showErrorMessage("Error sending invitation: ${e.message}")
-            } finally {
-                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to send invitation.")
             }
         }
     }
 
-    /**
-     * Load patient adherence data.
-     */
     fun loadPatientAdherence(patientId: String) {
+        view?.showLoading()
         presenterScope.launch {
-            caregiverRepository.loadPatientAdherence(patientId)
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Failed to load adherence: ${exception.message}")
+            try {
+                val adherence = withContext(Dispatchers.IO) {
+                    caregiverRepository.loadPatientAdherence(patientId)
                 }
-                .collect { adherenceLogs ->
-                    view?.showAdherenceData(adherenceLogs)
-                }
+                view?.hideLoading()
+                view?.displayPatientAdherence(adherence)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load adherence data.")
+            }
         }
     }
 
-    /**
-     * Load patient's list of medications.
-     */
     fun loadPatientMedications(patientId: String) {
+        view?.showLoading()
         presenterScope.launch {
-            medicationRepository.loadPatientMedications(patientId) // Used medicationRepository here
-                .onStart { view?.showLoading() }
-                .onCompletion { view?.hideLoading() }
-                .catch { exception ->
-                    view?.showErrorMessage("Failed to load medications: ${exception.message}")
+            try {
+                val medications = withContext(Dispatchers.IO) {
+                    medicationRepository.loadMedications(patientId)
                 }
-                .collect { medications ->
-                    view?.showMedications(medications)
-                }
+                view?.hideLoading()
+                view?.displayPatientMedications(medications)
+            } catch (e: Exception) {
+                view?.hideLoading()
+                view?.displayError(e.message ?: "Failed to load patient medications.")
+            }
         }
     }
 }
