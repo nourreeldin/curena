@@ -2,15 +2,11 @@ package com.fueians.medicationapp.presenter.Signup
 
 import com.fueians.medicationapp.model.entities.UserEntity
 import com.fueians.medicationapp.model.repository.UserRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 
 // =========================================================================
-// 1. View Interface
+// 1. View Interface (no changes needed)
 // =========================================================================
 
 interface SignupView {
@@ -21,18 +17,15 @@ interface SignupView {
 }
 
 // =========================================================================
-// 2. Presenter
+// 2. Presenter (Updated for RxJava)
 // =========================================================================
 
 class SignupPresenter(private var view: SignupView?) {
 
-    // The repository is now a private attribute, instantiated by the presenter.
     private val userRepository = UserRepository()
-
-    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val compositeDisposable = CompositeDisposable()
 
     fun signup(name: String, email: String, password: String, confirmPassword: String) {
-        // --- Synchronous UI Validations ---
         if (name.isBlank()) {
             view?.showSignupError("Full name is required")
             return
@@ -50,7 +43,7 @@ class SignupPresenter(private var view: SignupView?) {
             return
         }
         if (!isStrongPassword(password)) {
-            view?.showSignupError("Password is too weak. It must be 8+ characters and include uppercase, lowercase, a digit, and a special character.")
+            view?.showSignupError("Password must be 8+ characters and include uppercase, lowercase, a digit, and a special character.")
             return
         }
         if (password != confirmPassword) {
@@ -60,42 +53,29 @@ class SignupPresenter(private var view: SignupView?) {
 
         view?.showLoading()
 
-        presenterScope.launch {
-            try {
-                // Run the blocking repository call on a background thread
-                val newUser = withContext(Dispatchers.IO) {
-                    userRepository.createAccount(name, email, password)
-                }
-                // Switch back to the Main thread to update the UI
+        val disposable = userRepository.createAccount(name, email, password)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                view?.onSignupSuccess(newUser)
-            } catch (e: Exception) {
-                // Handle exceptions thrown by the repository
+                view?.onSignupSuccess(it)
+            }, {
                 view?.hideLoading()
-                view?.showSignupError(e.message ?: "Signup failed due to an unknown error.")
-            }
-        }
+                view?.showSignupError(it.message ?: "Signup failed due to an unknown error.")
+            })
+
+        compositeDisposable.add(disposable)
     }
 
-    /**
-     * Checks if a password meets the required complexity criteria.
-     */
     private fun isStrongPassword(password: String): Boolean {
-        if (password.length < 8)
-            return false
-        if (!password.contains(Regex("[A-Z]")))
-            return false
-        if (!password.contains(Regex("[a-z]")))
-            return false
-        if (!password.contains(Regex("\\d")))
-            return false
-        if (!password.contains(Regex("[@$!%*?&]")))
-            return false
-        return true
+        return password.length >= 8 &&
+               password.contains(Regex("[A-Z]")) &&
+               password.contains(Regex("[a-z]")) &&
+               password.contains(Regex("\\d")) &&
+               password.contains(Regex("[@$!%*?&]"))
     }
 
     fun detachView() {
         view = null
-        presenterScope.cancel()
+        compositeDisposable.clear()
     }
 }

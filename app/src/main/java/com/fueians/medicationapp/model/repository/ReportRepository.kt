@@ -6,83 +6,73 @@ import com.fueians.medicationapp.model.entities.AdherenceLog
 import com.fueians.medicationapp.model.entities.DateRange
 import com.fueians.medicationapp.model.entities.ReportEntity
 import com.fueians.medicationapp.model.entities.ReportType
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.schedulers.Schedulers
 import java.util.Date
 import java.util.UUID
 
 /**
  * ReportRepository
  *
- * Responsibility: Provide a clean, synchronous API for generating and managing reports.
- * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ * Responsibility: Provide a clean, RxJava-based API for generating and managing reports.
  */
 class ReportRepository {
 
     // DAOs are now private attributes with placeholder implementations.
     private val reportDao: ReportDao = object : ReportDao {
         private val reports = mutableMapOf<String, ReportEntity>()
-        override fun getReportsForPatient(patientId: String) = reports.values.filter { it.patientId == patientId }
-        override fun getReportById(reportId: String) = reports[reportId]
-        override fun insertReport(report: ReportEntity) { reports[report.id] = report }
-        override fun deleteReport(reportId: String) { reports.remove(reportId) }
+        override fun getReportsForPatient(patientId: String): Flowable<List<ReportEntity>> = Flowable.just(reports.values.filter { it.patientId == patientId })
+        override fun getReportById(reportId: String): Single<ReportEntity> {
+            val report = reports[reportId]
+            return if (report != null) Single.just(report) else Single.error(androidx.room.EmptyResultSetException("Query returned no rows"))
+        }
+        override fun insertReport(report: ReportEntity): Completable = Completable.fromAction { reports[report.id] = report }
+        override fun deleteReport(reportId: String): Completable = Completable.fromAction { reports.remove(reportId) }
     }
 
     private val adherenceLogDao: AdherenceLogDao = object : AdherenceLogDao {
-        override fun getLogsForPatient(patientId: String): List<AdherenceLog> = emptyList()
-        override fun insertLog(log: AdherenceLog) {}
-        override fun getMissedDoses(): List<AdherenceLog> = emptyList()
+        override fun getLogsForPatient(patientId: String): Flowable<List<AdherenceLog>> = Flowable.just(emptyList())
+        override fun insertLog(log: AdherenceLog): Completable = Completable.complete()
+        override fun getMissedDoses(): Flowable<List<AdherenceLog>> = Flowable.just(emptyList())
     }
 
-    /**
-     * Generates a new report based on the given parameters.
-     * This is a blocking method and must be called from a background thread.
-     */
-    fun generateReport(patientId: String, type: ReportType, dateRange: DateRange): ReportEntity {
-        // In a real app, this would query various DAOs and compile data.
-        val reportDataJson = when (type) {
-            ReportType.ADHERENCE_SUMMARY -> "{\"adherence\": \"92%\"}"
-            ReportType.MEDICATION_HISTORY -> "{\"medications\": [\"Aspirin\", \"Lisinopril\"]}"
-            ReportType.FULL_REPORT -> "{\"adherence\": \"92%\", \"medications\": [\"Aspirin\"]}"
-        }
+    private val backgroundScheduler = Schedulers.io()
 
-        val report = ReportEntity(
-            id = UUID.randomUUID().toString(),
-            patientId = patientId,
-            generationDate = Date(),
-            startDate = dateRange.startDate,
-            endDate = dateRange.endDate,
-            type = type,
-            dataJson = reportDataJson
-        )
-
-        reportDao.insertReport(report)
-        return report
+    fun generateReport(patientId: String, type: ReportType, dateRange: DateRange): Single<ReportEntity> {
+        return Single.fromCallable {
+            val reportDataJson = when (type) {
+                ReportType.ADHERENCE_SUMMARY -> "{\"adherence\": \"92%\"}"
+                ReportType.MEDICATION_HISTORY -> "{\"medications\": [\"Aspirin\", \"Lisinopril\"]}"
+                ReportType.FULL_REPORT -> "{\"adherence\": \"92%\", \"medications\": [\"Aspirin\"]}"
+            }
+            ReportEntity(
+                id = UUID.randomUUID().toString(),
+                patientId = patientId,
+                generationDate = Date(),
+                startDate = dateRange.startDate,
+                endDate = dateRange.endDate,
+                type = type,
+                dataJson = reportDataJson
+            )
+        }.flatMap { report ->
+            reportDao.insertReport(report).toSingleDefault(report)
+        }.subscribeOn(backgroundScheduler)
     }
 
-    /**
-     * Loads all previously generated reports for a specific patient.
-     * This is a blocking method and must be called from a background thread.
-     */
-    fun loadReports(patientId: String): List<ReportEntity> {
-        return reportDao.getReportsForPatient(patientId)
+    fun loadReports(patientId: String): Flowable<List<ReportEntity>> {
+        return reportDao.getReportsForPatient(patientId).subscribeOn(backgroundScheduler)
     }
 
-    /**
-     * Deletes a specific report.
-     * This is a blocking method and must be called from a background thread.
-     */
-    fun deleteReport(reportId: String) {
-        reportDao.deleteReport(reportId)
+    fun deleteReport(reportId: String): Completable {
+        return reportDao.deleteReport(reportId).subscribeOn(backgroundScheduler)
     }
 
-    /**
-     * Shares a report. (e.g., creates a PDF, sends an email)
-     * This is a blocking method and must be called from a background thread.
-     */
-    fun shareReport(reportId: String) {
-        val report = reportDao.getReportById(reportId)
-            ?: throw Exception("Report not found.")
-
-        // Placeholder for sharing logic (e.g., creating a file, using an Intent)
-        println("Sharing report: ${report.id} of type ${report.type}")
+    fun shareReport(reportId: String): Completable {
+        return reportDao.getReportById(reportId)
+            .flatMapCompletable { report ->
+                Completable.fromAction { println("Sharing report: ${report.id} of type ${report.type}") }
+            }.subscribeOn(backgroundScheduler)
     }
 }

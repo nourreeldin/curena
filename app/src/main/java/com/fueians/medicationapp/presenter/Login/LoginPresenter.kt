@@ -2,15 +2,11 @@ package com.fueians.medicationapp.presenter.Login
 
 import com.fueians.medicationapp.model.entities.UserEntity
 import com.fueians.medicationapp.model.repository.UserRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 
 // =========================================================================
-// 1. View Interface
+// 1. View Interface (no changes needed)
 // =========================================================================
 
 interface LoginView {
@@ -21,18 +17,15 @@ interface LoginView {
 }
 
 // =========================================================================
-// 2. Presenter
+// 2. Presenter (Updated for RxJava)
 // =========================================================================
 
 class LoginPresenter(private var view: LoginView?) {
 
-    // The repository is now a private attribute, instantiated by the presenter.
     private val userRepository = UserRepository()
-
-    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val compositeDisposable = CompositeDisposable()
 
     fun login(email: String, password: String) {
-        // --- Synchronous UI Validations ---
         if (email.isBlank()) {
             view?.showLoginError("Email is required")
             return
@@ -48,25 +41,23 @@ class LoginPresenter(private var view: LoginView?) {
 
         view?.showLoading()
 
-        presenterScope.launch {
-            try {
-                // Run the blocking repository call on a background thread
-                val user = withContext(Dispatchers.IO) {
-                    userRepository.login(email, password)
-                }
-                // Switch back to the Main thread to update the UI
+        val disposable = userRepository.login(email, password)
+            .observeOn(AndroidSchedulers.mainThread()) // Ensure UI updates are on the main thread
+            .subscribe({
+                // onSuccess
                 view?.hideLoading()
-                view?.onLoginSuccess(user)
-            } catch (e: Exception) {
-                // Handle exceptions thrown by the repository
+                view?.onLoginSuccess(it)
+            }, {
+                // onError
                 view?.hideLoading()
-                view?.showLoginError(e.message ?: "Login failed")
-            }
-        }
+                view?.showLoginError(it.message ?: "Login failed")
+            })
+
+        compositeDisposable.add(disposable)
     }
 
     fun detachView() {
         view = null
-        presenterScope.cancel()
+        compositeDisposable.clear() // Dispose all subscriptions
     }
 }

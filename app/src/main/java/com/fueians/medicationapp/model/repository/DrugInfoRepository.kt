@@ -1,42 +1,34 @@
 package com.fueians.medicationapp.model.repository
 
 import com.fueians.medicationapp.model.dao.DrugInfoDao
-import com.fueians.medicationapp.model.entities.DrugInfo
+import com.fueians.medicationapp.model.entities.DrugInfoEntity
+import com.fueians.medicationapp.model.entities.DrugInteractionEntity
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.schedulers.Schedulers
 
 /**
  * DrugInfoRepository
  *
- * Responsibility: Provide a clean, synchronous API for drug information data operations.
- * All methods in this repository perform blocking I/O and MUST be called from a background thread.
+ * Responsibility: Provide a clean, RxJava-based API for drug information operations.
  */
-class DrugInfoRepository {
+class DrugInfoRepository(private val drugInfoDao: DrugInfoDao) {
 
-    // DAO is now a private attribute with a placeholder implementation.
-    private val drugInfoDao: DrugInfoDao = object : DrugInfoDao {
-        private val inMemoryDrugs = mutableMapOf<String, DrugInfo>()
+    private val backgroundScheduler = Schedulers.io()
 
-        override fun searchDrugs(query: String): List<DrugInfo> {
-            return inMemoryDrugs.values.filter { it.name.contains(query, ignoreCase = true) }
-        }
-
-        override fun getDrugInfoById(drugId: String): DrugInfo? {
-            return inMemoryDrugs[drugId]
-        }
-
-        override fun saveDrugInfo(drugInfo: DrugInfo) {
-            inMemoryDrugs[drugInfo.id] = drugInfo
-        }
+    fun getDrugById(id: String): Flowable<DrugInfoEntity> {
+        return drugInfoDao.getDrugById(id).subscribeOn(backgroundScheduler)
     }
 
-    fun searchDrugs(query: String): List<DrugInfo> {
-        return drugInfoDao.searchDrugs(query)
+    fun searchDrugs(query: String): Flowable<List<DrugInfoEntity>> {
+        return drugInfoDao.searchDrugs(query).subscribeOn(backgroundScheduler)
     }
 
-    fun loadDrugInfo(drugId: String): DrugInfo? {
-        return drugInfoDao.getDrugInfoById(drugId)
+    fun insertDrugInfo(drugInfo: DrugInfoEntity): Completable {
+        return drugInfoDao.insertDrugInfo(drugInfo).subscribeOn(backgroundScheduler)
     }
 
-    fun saveDrugInfo(drugInfo: DrugInfo) {
-        drugInfoDao.saveDrugInfo(drugInfo)
+    fun getInteractionsByDrug(drugId: String): Flowable<List<DrugInteractionEntity>> {
+        return drugInfoDao.getInteractionsByDrug(drugId).subscribeOn(backgroundScheduler)
     }
 }

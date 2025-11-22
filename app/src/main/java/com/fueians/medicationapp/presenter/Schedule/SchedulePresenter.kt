@@ -3,12 +3,8 @@ package com.fueians.medicationapp.presenter.Schedule
 import com.fueians.medicationapp.model.repository.ScheduleRepository
 import com.fueians.medicationapp.model.entities.MedicationSchedule
 import com.fueians.medicationapp.presenter.TestRepo.NotificationSettings
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 
 // Placeholder service - this would have its own file
 class ReminderService {
@@ -23,11 +19,9 @@ class ReminderService {
 
 class SchedulePresenter(private var view: IScheduleView?) {
 
-    // Dependencies are now private attributes, instantiated by the presenter.
     private val scheduleRepository = ScheduleRepository()
     private val reminderService = ReminderService()
-
-    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val compositeDisposable = CompositeDisposable()
 
     fun attachView(view: IScheduleView) {
         this.view = view
@@ -35,131 +29,124 @@ class SchedulePresenter(private var view: IScheduleView?) {
 
     fun detachView() {
         view = null
-        presenterScope.cancel()
+        compositeDisposable.clear()
     }
 
     fun loadSchedules() {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                val schedules = withContext(Dispatchers.IO) {
-                    scheduleRepository.loadSchedules()
-                }
+        val disposable = scheduleRepository.loadSchedules()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                view?.displaySchedules(schedules)
-            } catch (e: Exception) {
+                view?.displaySchedules(it)
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to load schedules.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to load schedules.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun loadTodaySchedules() {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                val schedules = withContext(Dispatchers.IO) {
-                    scheduleRepository.loadTodaySchedules()
-                }
+        val disposable = scheduleRepository.loadTodaySchedules()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                view?.displaySchedules(schedules)
-            } catch (e: Exception) {
+                view?.displaySchedules(it)
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to load today's schedules.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to load today's schedules.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun createSchedule(schedule: MedicationSchedule) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { scheduleRepository.createSchedule(schedule) }
+        val disposable = scheduleRepository.createSchedule(schedule)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 if (schedule.isRecurring) {
                     reminderService.setReminder(schedule)
                 }
                 view?.hideLoading()
                 view?.onScheduleCreated()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to create schedule.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to create schedule.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun updateSchedule(schedule: MedicationSchedule) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { scheduleRepository.updateSchedule(schedule) }
+        val disposable = scheduleRepository.updateSchedule(schedule)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 if (schedule.isRecurring) {
                     reminderService.setReminder(schedule)
                 }
                 view?.hideLoading()
                 view?.onScheduleUpdated()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to update schedule.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to update schedule.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun deleteSchedule(scheduleId: String) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { scheduleRepository.deleteSchedule(scheduleId) }
+        val disposable = scheduleRepository.deleteSchedule(scheduleId)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 reminderService.cancelReminder(scheduleId)
                 view?.hideLoading()
                 view?.onScheduleDeleted()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to delete schedule.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to delete schedule.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun markDoseTaken(scheduleId: String, timestamp: Long) {
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { scheduleRepository.markDoseTaken(scheduleId, timestamp) }
-            } catch (e: Exception) {
-                view?.displayError(e.message ?: "Failed to log dose.")
-            }
-        }
+        val disposable = scheduleRepository.markDoseTaken(scheduleId, timestamp)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({}, {
+                view?.displayError(it.message ?: "Failed to log dose.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun markDoseMissed(scheduleId: String) {
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { scheduleRepository.markDoseMissed(scheduleId) }
-            } catch (e: Exception) {
-                view?.displayError(e.message ?: "Failed to log missed dose.")
-            }
-        }
+        val disposable = scheduleRepository.markDoseMissed(scheduleId)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({}, {
+                view?.displayError(it.message ?: "Failed to log missed dose.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun loadMissedDoses() {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                val doses = withContext(Dispatchers.IO) { scheduleRepository.loadMissedDoses() }
+        val disposable = scheduleRepository.loadMissedDoses()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                view?.displayMissedDoses(doses)
-            } catch (e: Exception) {
+                view?.displayMissedDoses(it)
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to load missed doses.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to load missed doses.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun updateNotificationSettings(settings: NotificationSettings) {
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { scheduleRepository.updateNotificationSettings(settings) }
-            } catch (e: Exception) {
-                view?.displayError(e.message ?: "Failed to update settings.")
-            }
-        }
+        val disposable = scheduleRepository.updateNotificationSettings(settings)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({}, {
+                view?.displayError(it.message ?: "Failed to update settings.")
+            })
+        compositeDisposable.add(disposable)
     }
 }

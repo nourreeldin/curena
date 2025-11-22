@@ -3,35 +3,28 @@ package com.fueians.medicationapp.presenter.User
 import com.fueians.medicationapp.model.entities.UserEntity
 import com.fueians.medicationapp.model.repository.UserRepository
 import com.fueians.medicationapp.presenter.Iprofile.IProfileView
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 
 // =========================================================================
-// 1. Placeholder Service
+// 1. Placeholder Service (no changes needed)
 // =========================================================================
 
 class SecurityManager {
     fun logout() {
-        // In a real app, this would clear session tokens, etc.
         println("User logged out.")
     }
 }
 
 // =========================================================================
-// 2. Presenter
+// 2. Presenter (Updated for RxJava)
 // =========================================================================
 
 class UserPresenter(private var view: IProfileView?) {
 
-    // Dependencies are now private attributes, instantiated by the presenter.
     private val userRepository = UserRepository()
     private val securityManager = SecurityManager()
-
-    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val compositeDisposable = CompositeDisposable()
 
     fun attachView(view: IProfileView) {
         this.view = view
@@ -39,80 +32,70 @@ class UserPresenter(private var view: IProfileView?) {
 
     fun detachView() {
         view = null
-        presenterScope.cancel()
+        compositeDisposable.clear()
     }
 
     fun loadUserProfile(userId: String) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                val user = withContext(Dispatchers.IO) {
-                    userRepository.getUserById(userId)
-                }
+        val disposable = userRepository.getUserById(userId)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                user?.let { view?.displayUserProfile(it) }
-            } catch (e: Exception) {
+                view?.displayUserProfile(it)
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to load profile.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to load profile.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun updateUserProfile(user: UserEntity) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    userRepository.updateUser(user)
-                }
+        val disposable = userRepository.updateUser(user)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
                 view?.onProfileUpdated()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to update profile.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to update profile.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun changePassword(userId: String, oldPassword: String, newPassword: String) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    userRepository.changePassword(userId, oldPassword, newPassword)
-                }
+        val disposable = userRepository.changePassword(userId, oldPassword, newPassword)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
                 view?.onPasswordChanged()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to change password.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to change password.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun updateProfilePhoto(userId: String, photoUri: String) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    val user = userRepository.getUserById(userId)
-                        ?: throw Exception("User not found.")
-                    val updatedUser = user.copy(photoUrl = photoUri)
-                    userRepository.updateUser(updatedUser)
-                }
+        val disposable = userRepository.getUserById(userId).firstOrError()
+            .flatMapCompletable { user ->
+                userRepository.updateUser(user.copy(photoUrl = photoUri))
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
                 view?.onProfileUpdated()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to update photo.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to update photo.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun logout() {
-        presenterScope.launch {
-            securityManager.logout()
-            view?.onLogout()
-        }
+        securityManager.logout()
+        view?.onLogout()
     }
 }

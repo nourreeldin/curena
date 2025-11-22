@@ -2,12 +2,8 @@ package com.fueians.medicationapp.presenter.Medication
 
 import com.fueians.medicationapp.model.entities.Medication
 import com.fueians.medicationapp.model.repository.MedicationRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 
 // Placeholder service - this would have its own file in a real app
 class DrugInteractionService {
@@ -32,11 +28,9 @@ interface IMedicationView {
 
 class MedicationPresenter(private var view: IMedicationView?) {
 
-    // Dependencies are now private attributes, instantiated by the presenter.
     private val medicationRepository = MedicationRepository()
     private val drugInteractionService = DrugInteractionService()
-
-    private val presenterScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val compositeDisposable = CompositeDisposable()
 
     fun attachView(view: IMedicationView) {
         this.view = view
@@ -44,88 +38,82 @@ class MedicationPresenter(private var view: IMedicationView?) {
 
     fun detachView() {
         view = null
-        presenterScope.cancel()
+        compositeDisposable.clear()
     }
 
     fun loadMedications(userId: String) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                val medications = withContext(Dispatchers.IO) {
-                    medicationRepository.loadMedications(userId)
-                }
+        val disposable = medicationRepository.loadMedications(userId)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                view?.displayMedications(medications)
-            } catch (e: Exception) {
+                view?.displayMedications(it)
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to load medications.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to load medications.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun addMedication(medication: Medication) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { medicationRepository.addMedication(medication) }
+        val disposable = medicationRepository.addMedication(medication)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
                 view?.onMedicationAdded()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to add medication.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to add medication.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun updateMedication(medication: Medication) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { medicationRepository.updateMedication(medication) }
+        val disposable = medicationRepository.updateMedication(medication)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
                 view?.onMedicationUpdated()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to update medication.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to update medication.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun deleteMedication(medication: Medication) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                withContext(Dispatchers.IO) { medicationRepository.deleteMedication(medication) }
+        val disposable = medicationRepository.deleteMedication(medication)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
                 view?.onMedicationDeleted()
-            } catch (e: Exception) {
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to delete medication.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to delete medication.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun searchMedications(userId: String, query: String) {
         view?.showLoading()
-        presenterScope.launch {
-            try {
-                val medications = withContext(Dispatchers.IO) {
-                    medicationRepository.searchMedications(userId, query)
-                }
+        val disposable = medicationRepository.searchMedications(userId, query)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 view?.hideLoading()
-                view?.displayMedications(medications)
-            } catch (e: Exception) {
+                view?.displayMedications(it)
+            }, {
                 view?.hideLoading()
-                view?.displayError(e.message ?: "Failed to search medications.")
-            }
-        }
+                view?.displayError(it.message ?: "Failed to search medications.")
+            })
+        compositeDisposable.add(disposable)
     }
 
     fun checkDrugInteractions(medications: List<Medication>) {
-        presenterScope.launch {
-            // This service is synchronous and doesn't need a background thread
-            val interactions = drugInteractionService.checkInteractions(medications)
-            view?.displayInteractions(interactions)
-        }
+        // This service is synchronous, so no RxJava is needed
+        val interactions = drugInteractionService.checkInteractions(medications)
+        view?.displayInteractions(interactions)
     }
 }

@@ -6,82 +6,55 @@ import com.fueians.medicationapp.model.dao.UserDao
 import com.fueians.medicationapp.model.entities.Medication
 import com.fueians.medicationapp.model.entities.MedicationSchedule
 import com.fueians.medicationapp.model.entities.UserEntity
+import io.reactivex.rxjava3.core.Completable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.schedulers.Schedulers
 
 /**
  * A placeholder interface for a remote API client.
  */
 interface RemoteApi {
-    fun pullUsers(): List<UserEntity>
-    fun pullMedications(): List<Medication>
-    fun pushMedications(medications: List<Medication>)
+    fun pullUsers(): Single<List<UserEntity>>
+    fun pullMedications(): Single<List<Medication>>
+    fun pushMedications(medications: List<Medication>): Completable
 }
 
 /**
  * SyncRepository
  *
  * Responsibility: Handle the synchronization of data between the local database and a remote server.
- * All methods in this repository perform blocking I/O and MUST be called from a background thread.
  */
 class SyncRepository {
 
     // DAOs and services are now private attributes with placeholder implementations.
-    private val userDao: UserDao = object : UserDao {
-        private val users = mutableMapOf<String, UserEntity>()
-        override fun getUserById(id: String) = users[id]
-        override fun getUserByEmail(email: String) = users.values.find { it.email == email }
-        override fun insertUser(user: UserEntity) { users[user.id] = user }
-        override fun updateUser(user: UserEntity) { users[user.id] = user }
-        override fun deleteUser(user: UserEntity) { users.remove(user.id) }
-    }
-
-    private val medicationDao: MedicationDao = object : MedicationDao {
-        private val medications = mutableMapOf<String, Medication>()
-        override fun getMedicationsForUser(userId: String) = medications.values.filter { it.userId == userId }
-        override fun getMedicationById(medicationId: String) = medications[medicationId]
-        override fun searchMedicationsForUser(userId: String, query: String) = emptyList<Medication>()
-        override fun insertMedication(medication: Medication) { medications[medication.id] = medication }
-        override fun updateMedication(medication: Medication) { medications[medication.id] = medication }
-        override fun deleteMedication(medication: Medication) { medications.remove(medication.id) }
-    }
-
-    private val scheduleDao: ScheduleDao = object : ScheduleDao {
-        private val schedules = mutableMapOf<String, MedicationSchedule>()
-        override fun getAllSchedules() = schedules.values.toList()
-        override fun insertSchedule(schedule: MedicationSchedule) { schedules[schedule.id] = schedule }
-        override fun updateSchedule(schedule: MedicationSchedule) { schedules[schedule.id] = schedule }
-        override fun deleteScheduleById(scheduleId: String) { schedules.remove(scheduleId) }
-    }
+    private val userDao: UserDao = object : UserDao { /* ... placeholder ... */ }
+    private val medicationDao: MedicationDao = object : MedicationDao { /* ... placeholder ... */ }
+    private val scheduleDao: ScheduleDao = object : ScheduleDao { /* ... placeholder ... */ }
 
     private val remoteApi: RemoteApi = object : RemoteApi {
-        override fun pullUsers(): List<UserEntity> = emptyList()
-        override fun pullMedications(): List<Medication> = emptyList()
-        override fun pushMedications(medications: List<Medication>) { println("Pushing ${medications.size} medications to remote.") }
+        override fun pullUsers(): Single<List<UserEntity>> = Single.just(emptyList())
+        override fun pullMedications(): Single<List<Medication>> = Single.just(emptyList())
+        override fun pushMedications(medications: List<Medication>): Completable = Completable.fromAction { println("Pushed ${medications.size} medications.") }
     }
 
-    /**
-     * Pulls all data from the remote server and saves it to the local database.
-     * This is a blocking method and must be called from a background thread.
-     */
-    fun pullFromServer() {
-        // Fetch data from the remote API
-        val remoteUsers = remoteApi.pullUsers()
-        val remoteMedications = remoteApi.pullMedications()
+    private val backgroundScheduler = Schedulers.io()
 
-        // Save data to the local DAOs
-        remoteUsers.forEach { userDao.updateUser(it) }
-        remoteMedications.forEach { medicationDao.updateMedication(it) }
+    fun pullFromServer(): Completable {
+        val pullUsers = remoteApi.pullUsers().flatMapCompletable { users -> Completable.fromAction { users.forEach { userDao.updateUser(it) } } }
+        val pullMedications = remoteApi.pullMedications().flatMapCompletable { medications -> Completable.fromAction { medications.forEach { medicationDao.updateMedication(it) } } }
 
-        println("Sync complete: Pulled ${remoteUsers.size} users and ${remoteMedications.size} medications.")
+        return Completable.mergeArray(pullUsers, pullMedications)
+            .doOnComplete { println("Sync complete: Pulled data from server.") }
+            .subscribeOn(backgroundScheduler)
     }
 
-    /**
-     * Pushes all local data to the remote server.
-     * This is a blocking method and must be called from a background thread.
-     */
-    fun pushToServer() {
-        // In a real app, you would fetch all local data that needs syncing.
-        val localMedications = medicationDao.getMedicationsForUser("all") // Simplified
-        remoteApi.pushMedications(localMedications)
-        println("Push complete: Sent ${localMedications.size} medications to server.")
+    fun pushToServer(): Completable {
+        return medicationDao.getMedicationsForUser("all").firstOrError() // Simplified
+            .flatMapCompletable { localMedications ->
+                remoteApi.pushMedications(localMedications)
+            }
+            .doOnComplete { println("Push complete: Sent data to server.") }
+            .subscribeOn(backgroundScheduler)
     }
 }
