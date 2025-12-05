@@ -6,15 +6,15 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
-import com.fueians.medicationapp.model.entities.UserEntity
-//import com.fueians.medicationapp.presenter.LoginPresenter
+import com.fueians.medicationapp.presenter.LoginPresenter
 import com.fueians.medicationapp.view.interfaces.ILoginView
 import com.fueians.medicationapp.view.screens.LoginScreen
 import com.fueians.medicationapp.view.theme.AppTheme
+import com.fueians.medicationapp.model.entities.UserEntity
 
 class LoginActivity : ComponentActivity(), ILoginView {
 
-    //private lateinit var loginPresenter: LoginPresenter
+    private lateinit var loginPresenter: LoginPresenter
 
     private var email = mutableStateOf("")
     private var password = mutableStateOf("")
@@ -24,8 +24,10 @@ class LoginActivity : ComponentActivity(), ILoginView {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //loginPresenter = LoginPresenter(this)
+        loginPresenter = LoginPresenter(this, applicationContext)
+
         this.window.requestFeature(android.view.Window.FEATURE_NO_TITLE)
+
         setContent {
             AppTheme {
                 LoginScreen(
@@ -41,9 +43,12 @@ class LoginActivity : ComponentActivity(), ILoginView {
                     },
                     isLoading = isLoading.value,
                     errorMessage = errorMessage.value,
+
+                    // Call Presenter here
                     onLoginClick = {
-                        // loginPresenter.login(email.value, password.value)
+                        loginPresenter.login(email.value, password.value)
                     },
+
                     onNavigateToSignup = {
                         startActivity(Intent(this@LoginActivity, SignupActivity::class.java))
                     },
@@ -55,13 +60,17 @@ class LoginActivity : ComponentActivity(), ILoginView {
         }
     }
 
-    override fun showLoading() { isLoading.value = true }
-    override fun hideLoading() { isLoading.value = false }
+    override fun showLoading() {
+        isLoading.value = true
+    }
+
+    override fun hideLoading() {
+        isLoading.value = false
+    }
 
     override fun showLoginSuccess(user: UserEntity) {
         Toast.makeText(this, "Welcome ${user.email}", Toast.LENGTH_SHORT).show()
-        startActivity(Intent(this, MainActivity::class.java))
-        finish()
+        navigateToHome()
     }
 
     override fun showLoginError(message: String) {
@@ -76,6 +85,6 @@ class LoginActivity : ComponentActivity(), ILoginView {
 
     override fun onDestroy() {
         super.onDestroy()
-        //loginPresenter.detachView()
+        loginPresenter.detachView()
     }
 }

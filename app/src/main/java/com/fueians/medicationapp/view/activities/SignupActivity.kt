@@ -25,7 +25,7 @@ class SignupActivity : ComponentActivity(), ISignupView {
         super.onCreate(savedInstanceState)
         this.window.requestFeature(android.view.Window.FEATURE_NO_TITLE)
 
-        presenter = SignupPresenter(this)
+        presenter = SignupPresenter(this, applicationContext)
 
         setContent {
             AppTheme {
@@ -66,5 +66,10 @@ class SignupActivity : ComponentActivity(), ISignupView {
     override fun showRegistrationSuccess() {
         startActivity(Intent(this, EmailVerificationActivity::class.java))
         finish()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        presenter.detachView()
     }
 }

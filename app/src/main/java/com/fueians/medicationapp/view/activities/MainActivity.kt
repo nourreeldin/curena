@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.fueians.medicationapp.model.clients.SupabaseClient
 import com.fueians.medicationapp.view.interfaces.ISplashView
 import com.fueians.medicationapp.view.screens.WelcomeScreen
 import com.fueians.medicationapp.view.theme.AppTheme

@@ -1,6 +1,7 @@
 package com.fueians.medicationapp
 import android.app.Application
 import android.util.Log
+import com.fueians.medicationapp.model.security.SecurityManager
 /**
  * MainApplication serves as the base Application class for the application.
  *
@@ -14,6 +15,7 @@ class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Application started")
+        SecurityManager.getInstance(this).initialize()
     }
     companion object {
         private const val TAG = "MedicationApp"

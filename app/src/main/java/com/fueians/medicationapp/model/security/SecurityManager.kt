@@ -421,8 +421,5 @@ data class SecurityEvent(
  */
 enum class SecurityThreat {
     ROOTED_DEVICE,
-    DEBUGGABLE_APP,
-    EMULATOR_DETECTED,
-    TAMPERING_DETECTED,
-    MALICIOUS_APP_DETECTED
+    DEBUGGABLE_APP
 }

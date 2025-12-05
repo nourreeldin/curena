@@ -1,5 +1,4 @@
 package com.fueians.medicationapp.model.typeconverters
-
 import androidx.room.TypeConverter
 import java.time.Instant
 
